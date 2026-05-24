@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from rules import patterns
-from rules.models import Dragon, Hand, Meld, MeldType, Suit, Tile, Wind
+from rules.models import Dragon, Hand, Meld, MeldType, Suit, Tile, Wind, GameState, Player
 
 
 def _parse_tile(d: dict) -> Tile:
@@ -64,20 +64,31 @@ PATTERNS_DATA = {
     ]
 }
 
+game_state = GameState(
+    players=[
+        Player(name="Player 1", seat_wind=Wind.EAST),
+        Player(name="Player 2", seat_wind=Wind.SOUTH),
+        Player(name="Player 3", seat_wind=Wind.WEST),
+        Player(name="Player 4", seat_wind=Wind.NORTH),
+    ]
+)
+
 
 def handle_score(body: dict) -> dict:
     try:
         concealed = [_parse_tile(t) for t in body["concealed_tiles"]]
         melds_raw = body.get("melds", [])
         melds = [_parse_meld(m) for m in melds_raw]
+        discarder = body.get("discarder_wind")
         hand = Hand(
             concealed_tiles=concealed,
             melds=melds,
             is_self_drawn=body.get("is_self_drawn", False),
             seat_wind=_parse_wind(body.get("seat_wind", "east")),
             prevalent_wind=_parse_wind(body.get("prevalent_wind", "east")),
+            discarder_wind=_parse_wind(discarder) if discarder else None
         )
-        return patterns.score_hand(hand)
+        return patterns.apply_round_scores(game_state, hand)
     except Exception as e:
         return {"error": str(e), "total_fan": 0, "fans": [], "total_payable": 0}
 
@@ -125,6 +136,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_html("<h1>Frontend not found</h1>", 404)
         elif path == "/patterns":
             self._send_json(PATTERNS_DATA)
+        elif path == "/state":
+            state_data = {
+                "prevalent_wind": game_state.prevalent_wind.value,
+                "players": [
+                    {
+                        "name": p.name,
+                        "seat_wind": p.seat_wind.value,
+                        "score": p.score
+                    } for p in game_state.players
+                ]
+            }
+            self._send_json(state_data)
         elif path == "/score":
             self._send_json({"message": "Send a POST request to /score with a JSON body"})
         else:
@@ -140,6 +163,17 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(body_data.decode("utf-8"))
             result = handle_score(body)
             self._send_json(result)
+        elif path == "/players":
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > 0:
+                body_data = self.rfile.read(content_length)
+                body = json.loads(body_data.decode("utf-8"))
+                for p in game_state.players:
+                    if p.seat_wind.value in body:
+                        p.name = body[p.seat_wind.value]
+                self._send_json({"message": "Players updated successfully"})
+            else:
+                self._send_json({"error": "Empty request body"}, 400)
         else:
             self._send_json({"error": "Not found"}, 404)
 

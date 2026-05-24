@@ -26,7 +26,8 @@ h1 { text-align: center; color: #e94560; margin-bottom: 24px; font-size: 28px; }
 .tile .label { position: absolute; bottom: 1px; font-size: 9px; opacity: 0.7; }
 .form-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
 .form-row label { min-width: 90px; font-size: 14px; }
-select, input[type="checkbox"] { background: #0f3460; color: #e0e0e0; border: 1px solid #0f3460; border-radius: 6px; padding: 6px 10px; }
+select, input[type="checkbox"], input[type="text"] { background: #0f3460; color: #e0e0e0; border: 1px solid #0f3460; border-radius: 6px; padding: 6px 10px; outline: none; }
+input[type="text"]:focus { border-color: #e94560; }
 button { background: #e94560; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: background 0.2s; }
 button:hover { background: #d63851; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -59,7 +60,22 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   <h1>🀄 HK Mahjong Score Calculator</h1>
 
   <div class="card" id="scoreboardCard">
-    <h2>Scoreboard</h2>
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      Scoreboard
+      <button id="editPlayersBtn" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560;">Edit Names</button>
+    </h2>
+    <div id="editPlayersForm" style="display:none; margin-bottom: 16px; background: #1a2744; padding: 12px; border-radius: 8px;">
+      <div class="grid">
+        <div class="form-row"><label>East</label><input type="text" id="inputNameEast" style="width:100%"></div>
+        <div class="form-row"><label>South</label><input type="text" id="inputNameSouth" style="width:100%"></div>
+        <div class="form-row"><label>West</label><input type="text" id="inputNameWest" style="width:100%"></div>
+        <div class="form-row"><label>North</label><input type="text" id="inputNameNorth" style="width:100%"></div>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button id="savePlayersBtn" style="font-size:13px;padding:6px 16px">Save Players</button>
+        <button id="cancelPlayersBtn" style="font-size:13px;padding:6px 16px; background:#555;">Cancel</button>
+      </div>
+    </div>
     <div class="scoreboard-grid" id="scoreboardGrid"></div>
   </div>
 
@@ -304,31 +320,13 @@ document.getElementById('calculateBtn').addEventListener('click', async () => {
   }
 });
 
-function applyScore() {
+async function applyScore() {
   if (!lastCalculation) return;
   
-  const { points, dealer_multiplier, isSelfDrawn, seatWind, discarderWind } = lastCalculation;
-  const basePoints = points / dealer_multiplier;
-  let totalWon = 0;
+  // Scores are already updated on the backend when /score happens. 
+  // We just fetch the latest synchronized state.
+  await fetchState();
 
-  if (isSelfDrawn) {
-    // Self-Drawn: Dealer pays/receives double, others pay single
-    Object.keys(players).forEach(w => {
-      if (w !== seatWind) {
-        let payout = (seatWind === 'east' || w === 'east') ? basePoints * 2 : basePoints;
-        players[w].score -= payout;
-        totalWon += payout;
-      }
-    });
-    players[seatWind].score += totalWon;
-  } else {
-    // Discard (Ron): Discarder pays for the whole table (Bao rule)
-    totalWon = (seatWind === 'east') ? basePoints * 6 : basePoints * 4;
-    players[discarderWind].score -= totalWon;
-    players[seatWind].score += totalWon;
-  }
-  
-  renderScoreboard();
   lastCalculation = null; // Prevent applying the same score multiple times
 }
 
@@ -373,7 +371,66 @@ renderSuitTabs();
 renderValueBtns();
 renderConcealedTiles();
 renderMeldList();
-renderScoreboard();
+
+async function fetchState() {
+  try {
+    const res = await fetch('/state');
+    if (res.ok) {
+      const data = await res.json();
+      data.players.forEach(p => {
+        if (players[p.seat_wind]) {
+          players[p.seat_wind].name = p.name;
+          players[p.seat_wind].score = p.score;
+        }
+      });
+      if (data.prevalent_wind) {
+        document.getElementById('prevalentWind').value = data.prevalent_wind;
+      }
+      renderScoreboard();
+    }
+  } catch (e) {
+    console.error('Could not fetch state', e);
+    renderScoreboard(); // Fallback to local hardcoded objects
+  }
+}
+
+document.getElementById('editPlayersBtn').addEventListener('click', () => {
+  document.getElementById('inputNameEast').value = players.east.name;
+  document.getElementById('inputNameSouth').value = players.south.name;
+  document.getElementById('inputNameWest').value = players.west.name;
+  document.getElementById('inputNameNorth').value = players.north.name;
+  document.getElementById('editPlayersForm').style.display = 'block';
+  document.getElementById('scoreboardGrid').style.display = 'none';
+});
+
+document.getElementById('cancelPlayersBtn').addEventListener('click', () => {
+  document.getElementById('editPlayersForm').style.display = 'none';
+  document.getElementById('scoreboardGrid').style.display = 'grid';
+});
+
+document.getElementById('savePlayersBtn').addEventListener('click', async () => {
+  const payload = {
+    east: document.getElementById('inputNameEast').value,
+    south: document.getElementById('inputNameSouth').value,
+    west: document.getElementById('inputNameWest').value,
+    north: document.getElementById('inputNameNorth').value
+  };
+  try {
+    await fetch('/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    await fetchState();
+    document.getElementById('editPlayersForm').style.display = 'none';
+    document.getElementById('scoreboardGrid').style.display = 'grid';
+  } catch (e) {
+    console.error('Failed to save players', e);
+  }
+});
+
+// Initialize everything from the backend!
+fetchState();
 </script>
 </body>
 </html>

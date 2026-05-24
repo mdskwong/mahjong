@@ -1,0 +1,388 @@
+from __future__ import annotations
+from collections import Counter
+from typing import Dict, List, Set, Tuple
+
+from .models import FanResult, Hand, Meld, MeldType, Suit, Tile, Wind, Player, GameState
+
+
+def _tile_counts(tiles: List[Tile]) -> Dict[Tuple[str, int], int]:
+    c: Dict[Tuple[str, int], int] = {}
+    for t in tiles:
+        key = (t.suit.value, t.value)
+        c[key] = c.get(key, 0) + 1
+    return c
+
+
+def _decompose(tiles: List[Tile]) -> List[List[Meld]]:
+    if len(tiles) % 3 != 2:
+        return []
+
+    results: List[List[Meld]] = []
+    counts = _tile_counts(tiles)
+
+    def backtrack(current_melds: List[Meld], remaining_count: int):
+        if remaining_count == 0:
+            results.append(list(current_melds))
+            return
+
+        keys = sorted(k for k, v in counts.items() if v > 0)
+        if not keys:
+            return
+
+        suit_str, value = keys[0]
+        suit = Suit(suit_str)
+        cnt = counts[(suit_str, value)]
+
+        if cnt >= 2 and remaining_count == 2:
+            counts[(suit_str, value)] -= 2
+            if counts[(suit_str, value)] == 0:
+                del counts[(suit_str, value)]
+            current_melds.append(Meld(
+                tiles=[Tile(suit, value), Tile(suit, value)],
+                meld_type=MeldType.PAIR
+            ))
+            backtrack(current_melds, 0)
+            current_melds.pop()
+            counts[(suit_str, value)] = cnt
+
+        elif remaining_count >= 3:
+            if cnt >= 3:
+                counts[(suit_str, value)] -= 3
+                if counts[(suit_str, value)] == 0:
+                    del counts[(suit_str, value)]
+                current_melds.append(Meld(
+                    tiles=[Tile(suit, value) for _ in range(3)],
+                    meld_type=MeldType.PONG
+                ))
+                backtrack(current_melds, remaining_count - 3)
+                current_melds.pop()
+                counts[(suit_str, value)] = cnt
+
+            if cnt >= 4:
+                counts[(suit_str, value)] -= 4
+                if counts[(suit_str, value)] == 0:
+                    del counts[(suit_str, value)]
+                current_melds.append(Meld(
+                    tiles=[Tile(suit, value) for _ in range(4)],
+                    meld_type=MeldType.KONG
+                ))
+                backtrack(current_melds, remaining_count - 4)
+                current_melds.pop()
+                counts[(suit_str, value)] = cnt
+
+            if cnt >= 1 and suit in (Suit.BAMBOO, Suit.CHARACTERS, Suit.DOTS) and 1 <= value <= 7:
+                v2 = (suit_str, value + 1)
+                v3 = (suit_str, value + 2)
+                if counts.get(v2, 0) >= 1 and counts.get(v3, 0) >= 1:
+                    for v in [(suit_str, value), v2, v3]:
+                        counts[v] -= 1
+                        if counts[v] == 0:
+                            del counts[v]
+                    current_melds.append(Meld(
+                        tiles=[Tile(suit, value), Tile(suit, value + 1), Tile(suit, value + 2)],
+                        meld_type=MeldType.CHOW
+                    ))
+                    backtrack(current_melds, remaining_count - 3)
+                    current_melds.pop()
+                    for v, orig_val in [((suit_str, value), value), (v2, value + 1), (v3, value + 2)]:
+                        counts[v] = counts.get(v, 0) + 1
+
+            if cnt >= 1 and remaining_count > 2:
+                counts[(suit_str, value)] -= 1
+                if counts[(suit_str, value)] == 0:
+                    del counts[(suit_str, value)]
+                backtrack(current_melds, remaining_count - 1)
+                counts[(suit_str, value)] = cnt
+
+    backtrack([], len(tiles))
+    return results
+
+
+def _is_ping_hu(melds: List[Meld], seat_wind: Wind, prevalent_wind: Wind) -> bool:
+    pair = None
+    chow_count = 0
+    for m in melds:
+        if m.meld_type == MeldType.PAIR:
+            pair = m
+        elif m.meld_type == MeldType.CHOW:
+            chow_count += 1
+        else:
+            return False
+    return chow_count == 4 and pair is not None and not pair.is_value_pair(seat_wind, prevalent_wind)
+
+
+def _all_pongs(melds: List[Meld]) -> bool:
+    return all(m.meld_type in (MeldType.PONG, MeldType.KONG) for m in melds)
+
+
+def _count_meld_type(melds: List[Meld], mt: MeldType) -> int:
+    return sum(1 for m in melds if m.meld_type == mt)
+
+
+def _is_pure_one_suit(tiles: List[Tile]) -> bool:
+    suits = {t.suit for t in tiles if not t.is_honor()}
+    return len(suits) == 1
+
+
+def _has_honors(tiles: List[Tile]) -> bool:
+    return any(t.is_honor() for t in tiles)
+
+
+def _is_small_three_dragons(melds: List[Meld]) -> bool:
+    dragon_pongs = 0
+    dragon_pair = False
+    for m in melds:
+        t = m.tiles[0]
+        if t.is_dragon():
+            if m.meld_type in (MeldType.PONG, MeldType.KONG):
+                dragon_pongs += 1
+            elif m.meld_type == MeldType.PAIR:
+                dragon_pair = True
+    return dragon_pongs == 2 and dragon_pair
+
+
+def _is_big_three_dragons(melds: List[Meld]) -> bool:
+    return sum(1 for m in melds if m.is_three_dragons()) == 3
+
+
+def _is_small_four_winds(melds: List[Meld]) -> bool:
+    wind_pongs = 0
+    wind_pair = False
+    for m in melds:
+        t = m.tiles[0]
+        if t.is_wind():
+            if m.meld_type in (MeldType.PONG, MeldType.KONG):
+                wind_pongs += 1
+            elif m.meld_type == MeldType.PAIR and not wind_pair:
+                wind_pair = True
+    return wind_pongs == 3 and wind_pair
+
+
+def _is_mixed_triple_chow(melds: List[Meld]) -> bool:
+    chows_by_num: Dict[int, Set[Suit]] = {}
+    for m in melds:
+        if m.meld_type != MeldType.CHOW:
+            continue
+        tiles = sorted(m.tiles, key=lambda t: t.value)
+        if len(tiles) != 3 or not (tiles[0].value == tiles[1].value - 1 == tiles[2].value - 2):
+            continue
+        first_val = tiles[0].value
+        if first_val not in chows_by_num:
+            chows_by_num[first_val] = set()
+        chows_by_num[first_val].add(tiles[0].suit)
+    return any(len(suits) == 3 for suits in chows_by_num.values())
+
+
+def _is_pure_triple_chow(melds: List[Meld]) -> bool:
+    chow_counts: Dict[Tuple[Suit, int], int] = {}
+    for m in melds:
+        if m.meld_type != MeldType.CHOW:
+            continue
+        tiles = sorted(m.tiles, key=lambda t: t.value)
+        if len(tiles) != 3:
+            continue
+        key = (tiles[0].suit, tiles[0].value)
+        chow_counts[key] = chow_counts.get(key, 0) + 1
+    return any(cnt >= 2 for cnt in chow_counts.values())
+
+
+def _is_mixed_one_suit(tiles: List[Tile]) -> bool:
+    suits = {t.suit for t in tiles if not t.is_honor()}
+    return len(suits) == 1 and _has_honors(tiles)
+
+
+def _is_all_simples(tiles: List[Tile]) -> bool:
+    return all(t.is_simple() for t in tiles)
+
+
+def _is_all_terminals_honors(tiles: List[Tile]) -> bool:
+    return all(t.is_terminal() or t.is_honor() for t in tiles)
+
+
+def _is_outside_hand(melds: List[Meld], tiles: List[Tile]) -> bool:
+    if _is_all_terminals_honors(tiles):
+        return False
+    for m in melds:
+        if m.meld_type == MeldType.CHOW:
+            vals = [t.value for t in m.tiles]
+            if 1 not in vals and 9 not in vals:
+                return False
+        else:
+            if not (m.tiles[0].is_terminal() or m.tiles[0].is_honor()):
+                return False
+    return True
+
+
+def _dragon_pong_count(melds: List[Meld]) -> int:
+    return sum(1 for m in melds if m.is_three_dragons())
+
+
+def _value_wind_pong_count(melds: List[Meld], seat_wind: Wind, prevalent_wind: Wind) -> int:
+    count = 0
+    for m in melds:
+        if m.meld_type not in (MeldType.PONG, MeldType.KONG):
+            continue
+        t = m.tiles[0]
+        if not t.is_wind():
+            continue
+        wind_val = t.value
+        seat_val = {"east": 1, "south": 2, "west": 3, "north": 4}[seat_wind.value]
+        prevalent_val = {"east": 1, "south": 2, "west": 3, "north": 4}[prevalent_wind.value]
+        if wind_val in (seat_val, prevalent_val):
+            count += 1
+    return count
+
+
+def detect_fans(hand: Hand, melds: List[Meld]) -> List[FanResult]:
+    fans: List[FanResult] = []
+    tiles = hand.concealed_tiles
+    all_tiles = tiles + [t for m in melds for t in m.tiles]
+
+    is_concealed_hand = all(m.concealed for m in melds if m.meld_type != MeldType.PAIR) and not hand.is_self_drawn
+
+    if _is_ping_hu(melds, hand.seat_wind, hand.prevalent_wind):
+        fans.append(FanResult(name="Ping Hu (Peace Hand)", fan=1))
+
+    if hand.is_self_drawn:
+        fans.append(FanResult(name="Self-Pick", fan=1))
+
+    if is_concealed_hand:
+        fans.append(FanResult(name="Fully Concealed Hand", fan=1))
+
+    dragon_cnt = _dragon_pong_count(melds)
+    if dragon_cnt >= 1:
+        fans.append(FanResult(name="Dragon Pong", fan=1))
+
+    wind_cnt = _value_wind_pong_count(melds, hand.seat_wind, hand.prevalent_wind)
+    if wind_cnt >= 1:
+        fans.append(FanResult(name="Value Wind Pong", fan=1))
+
+    if _is_mixed_triple_chow(melds):
+        fans.append(FanResult(name="Mixed Triple Chow", fan=2))
+
+    if _is_mixed_one_suit(all_tiles):
+        fans.append(FanResult(name="Mixed One Suit (Half Flush)", fan=2))
+
+    if _all_pongs(melds):
+        fans.append(FanResult(name="All Pongs", fan=2))
+
+    if dragon_cnt >= 2:
+        fans.append(FanResult(name="Double Dragon Pong", fan=2))
+
+    if wind_cnt >= 2:
+        fans.append(FanResult(name="Double Value Wind Pong", fan=2))
+
+    if _is_outside_hand(melds, all_tiles):
+        fans.append(FanResult(name="Outside Hand", fan=2))
+
+    if _is_pure_triple_chow(melds):
+        fans.append(FanResult(name="Pure Triple Chow", fan=3))
+
+    if _is_all_simples(all_tiles):
+        fans.append(FanResult(name="All Simples", fan=3))
+
+    three_concealed = sum(1 for m in melds if m.meld_type in (MeldType.PONG, MeldType.KONG) and m.concealed)
+    if three_concealed >= 3:
+        fans.append(FanResult(name="Three Concealed Pongs", fan=3))
+
+    if _is_small_three_dragons(melds):
+        fans.append(FanResult(name="Little Three Dragons", fan=5))
+
+    kong_count = _count_meld_type(melds, MeldType.KONG)
+    if kong_count >= 3:
+        fans.append(FanResult(name="Three Kongs", fan=5))
+
+    if _is_all_terminals_honors(all_tiles):
+        fans.append(FanResult(name="All Terminals and Honors", fan=5))
+
+    if _is_big_three_dragons(melds):
+        fans.append(FanResult(name="Big Three Dragons", fan=7))
+
+    if _is_small_four_winds(melds):
+        fans.append(FanResult(name="Four Small Winds", fan=7))
+
+    if _is_pure_one_suit(all_tiles) and not _has_honors(all_tiles):
+        fans.append(FanResult(name="Pure One Suit (Full Flush)", fan=7))
+
+    return fans
+
+
+def score_hand(hand: Hand) -> dict:
+    if len(hand.concealed_tiles) % 3 != 2:
+        return {"error": f"Invalid hand size: {len(hand.concealed_tiles)} tiles (must be 2 mod 3)", "total_fan": 0, "fans": [], "total_payable": 0}
+
+    if len(hand.concealed_tiles) < 2:
+        return {"error": "Too few tiles in hand", "total_fan": 0, "fans": [], "total_payable": 0}
+
+    decompositions = _decompose(hand.concealed_tiles)
+
+    if not decompositions:
+        return {"error": "Not a winning hand - cannot form 4 melds + 1 pair", "total_fan": 0, "fans": [], "total_payable": 0}
+
+    best_score = -1
+    best_fans: List[FanResult] = []
+
+    for melds in decompositions:
+        all_melds = melds + hand.melds
+        fans = detect_fans(hand, all_melds)
+        total_fan = sum(f.fan for f in fans)
+
+        if total_fan > best_score:
+            best_score = total_fan
+            best_fans = fans
+
+    base = 1
+    total = base << best_score if best_score < 10 else 0
+    is_limit = best_score >= 10 or total >= 10000
+
+    if is_limit:
+        total = 10000
+        best_score = max(best_score, 10)
+
+    is_dealer = hand.seat_wind == Wind.EAST
+    dealer_mult = 1
+    if is_dealer:
+        dealer_mult = 2
+
+    total_payable = total * dealer_mult
+
+    return {
+        "total_fan": best_score,
+        "fans": [f.to_dict() for f in best_fans],
+        "base_score": base,
+        "is_limit": is_limit,
+        "dealer_multiplier": dealer_mult,
+        "total_payable": total_payable,
+        "winner": hand.seat_wind.value,
+    }
+
+
+def apply_round_scores(game_state: GameState, hand: Hand) -> dict:
+    """
+    Calculates the winning hand and distributes the points among the 4 players.
+    """
+    result = score_hand(hand)
+    if "error" in result:
+        return result
+
+    total_payable = result["total_payable"]
+    winner_wind = hand.seat_wind
+    
+    winner = next(p for p in game_state.players if p.seat_wind == winner_wind)
+
+    if hand.is_self_drawn:
+        # Self-drawn (Zimo): All 3 other players pay the winner
+        for player in game_state.players:
+            if player.seat_wind != winner_wind:
+                player.score -= total_payable
+                winner.score += total_payable
+    else:
+        # Discard (Ron): Only the discarder pays the winner
+        if not hand.discarder_wind:
+            return {"error": "discarder_wind must be provided if not self-drawn"}
+            
+        discarder = next(p for p in game_state.players if p.seat_wind == hand.discarder_wind)
+        discarder.score -= total_payable
+        winner.score += total_payable
+        
+    return result

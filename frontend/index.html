@@ -62,7 +62,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   <div class="card" id="scoreboardCard">
     <h2 style="display:flex; justify-content:space-between; align-items:center;">
       Scoreboard
-      <button id="editPlayersBtn" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560;">Edit Names</button>
+      <div>
+        <button id="rotateWindsBtn" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560; margin-right: 8px;">Rotate Winds</button>
+        <button id="editPlayersBtn" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560;">Edit Names</button>
+      </div>
     </h2>
     <div id="editPlayersForm" style="display:none; margin-bottom: 16px; background: #1a2744; padding: 12px; border-radius: 8px;">
       <div class="grid">
@@ -82,7 +85,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   <div class="card">
     <h2>Settings</h2>
     <div class="grid">
-      <div class="form-row"><label>Seat Wind</label><select id="seatWind"><option value="east">East</option><option value="south">South</option><option value="west">West</option><option value="north">North</option></select></div>
+      <div class="form-row"><label>Winner</label><select id="seatWind"><option value="east">East</option><option value="south">South</option><option value="west">West</option><option value="north">North</option></select></div>
       <div class="form-row"><label>Prevalent Wind</label><select id="prevalentWind"><option value="east">East</option><option value="south">South</option><option value="west">West</option><option value="north">North</option></select></div>
       <div class="form-row"><label>Self-Draw</label><input type="checkbox" id="selfDraw"></div>
       <div class="form-row" id="discarderRow"><label>Discarder</label><select id="discarderWind"><option value="east">East</option><option value="south">South</option><option value="west">West</option><option value="north">North</option></select></div>
@@ -386,6 +389,28 @@ async function fetchState() {
       if (data.prevalent_wind) {
         document.getElementById('prevalentWind').value = data.prevalent_wind;
       }
+
+      // Dynamically populate Winner and Discarder dropdowns with Player Names
+      const seatWindSelect = document.getElementById('seatWind');
+      const discarderWindSelect = document.getElementById('discarderWind');
+      const currentSeat = seatWindSelect.value;
+      const currentDiscarder = discarderWindSelect.value;
+      
+      seatWindSelect.innerHTML = '';
+      discarderWindSelect.innerHTML = '';
+      
+      ['east', 'south', 'west', 'north'].forEach(w => {
+        const p = players[w];
+        if (p) {
+          const text = `${p.name} (${w.charAt(0).toUpperCase() + w.slice(1)})`;
+          seatWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
+          discarderWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
+        }
+      });
+      
+      if (currentSeat) seatWindSelect.value = currentSeat;
+      if (currentDiscarder) discarderWindSelect.value = currentDiscarder;
+
       renderScoreboard();
     }
   } catch (e) {
@@ -426,6 +451,15 @@ document.getElementById('savePlayersBtn').addEventListener('click', async () => 
     document.getElementById('scoreboardGrid').style.display = 'grid';
   } catch (e) {
     console.error('Failed to save players', e);
+  }
+});
+
+document.getElementById('rotateWindsBtn').addEventListener('click', async () => {
+  try {
+    await fetch('/rotate-winds', { method: 'POST' });
+    await fetchState(); // Instantly update frontend UI
+  } catch (e) {
+    console.error('Failed to rotate winds', e);
   }
 });
 

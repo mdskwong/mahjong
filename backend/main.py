@@ -174,6 +174,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"message": "Players updated successfully"})
             else:
                 self._send_json({"error": "Empty request body"}, 400)
+        elif path == "/rotate-winds":
+            wind_transition = {
+                Wind.EAST: Wind.NORTH,
+                Wind.SOUTH: Wind.EAST,
+                Wind.WEST: Wind.SOUTH,
+                Wind.NORTH: Wind.WEST
+            }
+            for p in game_state.players:
+                p.seat_wind = wind_transition[p.seat_wind]
+            self._send_json({"message": "Winds rotated successfully"})
         else:
             self._send_json({"error": "Not found"}, 404)
 

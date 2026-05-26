@@ -96,6 +96,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   </div>
 
   <div class="card">
+    <h2>Concealed Tiles (select your hand)</h2>
+    <div class="tile-picker">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <div class="suit-tabs" id="concealedTypeTabs" style="margin-bottom:0;"></div>
+      </div>
+      <div class="suit-tabs" id="concealedSuitTabs"></div>
+      <div class="value-btns" id="concealedValueBtns"></div>
+    </div>
+    <div class="meld-list" id="concealedList"></div>
+    <div style="margin-top:8px"><button id="clearConcealed" style="font-size:13px;padding:4px 12px">Clear Hand</button></div>
+  </div>
+
+  <div class="card">
     <h2>Melds (revealed)</h2>
     <div class="tile-picker">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
@@ -122,7 +135,7 @@ const SUIT_SYMBOLS = {
   characters: ['🀇','🀈','🀉','🀊','🀋','🀌','🀍','🀎','🀏'],
   dots: ['🀙','🀚','🀛','🀜','🀝','🀞','🀟','🀠','🀡'],
   wind: ['🀀','🀁','🀂','🀃'],
-  dragon: [' ','🀄','🀅','🀆'],
+  dragon: ['🀄','🀅','🀆'],
 };
 const DRAGON_NAMES = ['','Red','Green','White'];
 const WIND_NAMES = ['East','South','West','North'];
@@ -131,6 +144,8 @@ const ALL_SUITS = ['bamboo','characters','dots','wind','dragon'];
 
 let concealedTiles = [];
 let melds = [];
+let selectedConcealedType = 'single';
+let selectedConcealedSuit = 'bamboo';
 let selectedMeldType = 'pong';
 let selectedMeldSuit = 'bamboo';
 
@@ -144,8 +159,10 @@ let players = {
 
 function getTileCount(suit, value) {
   let count = 0;
-  for (const t of concealedTiles) {
-    if (t.suit === suit && t.value === value) count++;
+  for (const g of concealedTiles) {
+    for (const t of g.tiles) {
+      if (t.suit === suit && t.value === value) count++;
+    }
   }
   for (const m of melds) {
     for (const t of m.tiles) {
@@ -169,13 +186,132 @@ function renderScoreboard() {
 function tileSymbol(suit, value) {
   const arr = SUIT_SYMBOLS[suit];
   if (!arr) return value;
-  if (suit === 'dragon') return DRAGON_NAMES[value] || '?';
   return arr[value-1] || value;
 }
 
 function tileLabel(suit, value) {
   const sym = tileSymbol(suit, value);
-  return suit === 'dragon' ? sym.charAt(0) : (suit === 'wind' ? WIND_NAMES[value-1].charAt(0)+WIND_NAMES[value-1].slice(1,2) : sym);
+  return suit === 'dragon' ? sym : (suit === 'wind' ? WIND_NAMES[value-1].charAt(0)+WIND_NAMES[value-1].slice(1,2) : sym);
+}
+
+const CONCEALED_TYPES = ['single', 'pair', 'pong', 'kong', 'chow'];
+const CONCEALED_TYPE_LABELS = { single: 'Single', pair: 'Pair', pong: 'Pong', kong: 'Kong', chow: 'Chow' };
+
+function renderConcealedTypeTabs() {
+  const el = document.getElementById('concealedTypeTabs');
+  el.innerHTML = CONCEALED_TYPES.map(t => `<div class="suit-tab ${t === selectedConcealedType ? 'active' : ''}" data-type="${t}">${CONCEALED_TYPE_LABELS[t]}</div>`).join('');
+  el.querySelectorAll('.suit-tab').forEach(tab => {
+    tab.addEventListener('click', () => { 
+      selectedConcealedType = tab.dataset.type; 
+      renderConcealedTypeTabs(); 
+      renderConcealedSuitTabs(); 
+      renderConcealedValueBtns(); 
+    });
+  });
+}
+
+function renderConcealedSuitTabs() {
+  const el = document.getElementById('concealedSuitTabs');
+  const suits = selectedConcealedType === 'chow' ? VALUE_SUITS : ALL_SUITS;
+  if (selectedConcealedType === 'chow' && !VALUE_SUITS.includes(selectedConcealedSuit)) {
+    selectedConcealedSuit = 'bamboo';
+  }
+  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedConcealedSuit ? 'active' : ''}" data-suit="${s}">${SUIT_LABELS[s]}</div>`).join('');
+  el.querySelectorAll('.suit-tab').forEach(tab => {
+    tab.addEventListener('click', () => { 
+      selectedConcealedSuit = tab.dataset.suit; 
+      renderConcealedSuitTabs(); 
+      renderConcealedValueBtns(); 
+    });
+  });
+}
+
+function renderConcealedValueBtns() {
+  const el = document.getElementById('concealedValueBtns');
+  const suit = selectedConcealedSuit;
+  const type = selectedConcealedType;
+  
+  const currentTotal = concealedTiles.reduce((acc, g) => acc + g.tiles.length, 0);
+
+  const addBtn = (v, label) => {
+    let disabled = false;
+    let countToAdd = 0;
+    if (type === 'single') countToAdd = 1;
+    else if (type === 'pair') countToAdd = 2;
+    else if (type === 'pong' || type === 'chow') countToAdd = 3;
+    else if (type === 'kong') countToAdd = 4;
+
+    if (currentTotal + countToAdd > 14) disabled = true;
+
+    if (!disabled) {
+      if (type === 'chow') {
+        for (let off = 0; off < 3; off++) {
+          if (getTileCount(suit, v + off) + 1 > 4) disabled = true;
+        }
+      } else {
+        if (getTileCount(suit, v) + countToAdd > 4) disabled = true;
+      }
+    }
+    return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+  };
+
+  if (suit === 'wind') {
+    el.innerHTML = [1,2,3,4].map(v => addBtn(v, SUIT_SYMBOLS.wind[v-1])).join('');
+  } else if (suit === 'dragon') {
+    el.innerHTML = [1,2,3].map(v => addBtn(v, SUIT_SYMBOLS.dragon[v-1])).join('');
+  } else {
+    const maxVal = type === 'chow' ? 7 : 9;
+    const vals = Array.from({length: maxVal}, (_, i) => i + 1);
+    el.innerHTML = vals.map(v => addBtn(v, SUIT_SYMBOLS[suit][v-1])).join('');
+  }
+  el.querySelectorAll('.value-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!btn.disabled) {
+        addConcealedAction(btn.dataset.suit, parseInt(btn.dataset.value));
+      }
+    });
+  });
+}
+
+function addConcealedAction(suit, value) {
+  const type = selectedConcealedType;
+  let toAdd = [];
+  if (type === 'single') toAdd.push({suit, value});
+  else if (type === 'pair') toAdd.push({suit, value}, {suit, value});
+  else if (type === 'pong') toAdd.push({suit, value}, {suit, value}, {suit, value});
+  else if (type === 'kong') toAdd.push({suit, value}, {suit, value}, {suit, value}, {suit, value});
+  else if (type === 'chow') toAdd.push({suit, value}, {suit, value: value + 1}, {suit, value: value + 2});
+
+  concealedTiles.push({ type: type, tiles: toAdd });
+  renderConcealedList();
+  renderConcealedValueBtns();
+  renderMeldValueBtns();
+}
+
+function removeConcealedTile(idx) {
+  concealedTiles.splice(idx, 1);
+  renderConcealedList();
+  renderConcealedValueBtns();
+  renderMeldValueBtns();
+}
+
+function renderConcealedList() {
+  const el = document.getElementById('concealedList');
+  if (concealedTiles.length === 0) {
+    el.innerHTML = '<span class="empty-tiles">Click a tile above to add to your hand</span>';
+    return;
+  }
+  el.innerHTML = concealedTiles.map((g, i) => {
+    const tilesHtml = g.tiles.map(t => `<div class="tile ${SUIT_CLASS[t.suit]}">${tileSymbol(t.suit, t.value)}</div>`).join('');
+    return `
+      <div class="meld-item">
+        <div class="meld-item-header">
+          <span class="tag" style="text-transform: capitalize;">${g.type}</span>
+          <button onclick="removeConcealedTile(${i})">✕</button>
+        </div>
+        <div class="meld-item-tiles">${tilesHtml}</div>
+      </div>`;
+  }).join('');
 }
 
 function renderMeldList() {
@@ -201,6 +337,7 @@ function removeMeld(idx) {
   melds.splice(idx, 1);
   renderMeldList();
   renderMeldValueBtns();
+  renderConcealedValueBtns();
 }
 
 const MELD_TYPES = ['pong', 'kong', 'chow'];
@@ -254,13 +391,13 @@ function renderMeldValueBtns() {
   };
 
   if (suit === 'wind') {
-    el.innerHTML = [1,2,3,4].map(v => addBtn(v, WIND_NAMES[v-1])).join('');
+    el.innerHTML = [1,2,3,4].map(v => addBtn(v, SUIT_SYMBOLS.wind[v-1])).join('');
   } else if (suit === 'dragon') {
-    el.innerHTML = [1,2,3].map(v => addBtn(v, DRAGON_NAMES[v])).join('');
+    el.innerHTML = [1,2,3].map(v => addBtn(v, SUIT_SYMBOLS.dragon[v-1])).join('');
   } else {
     const maxVal = type === 'chow' ? 7 : 9;
     const vals = Array.from({length: maxVal}, (_, i) => i + 1);
-    el.innerHTML = vals.map(v => addBtn(v, v)).join('');
+    el.innerHTML = vals.map(v => addBtn(v, SUIT_SYMBOLS[suit][v-1])).join('');
   }
   el.querySelectorAll('.value-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -291,11 +428,20 @@ function addMeldAction(suit, value) {
   }
   renderMeldList();
   renderMeldValueBtns();
+  renderConcealedValueBtns();
 }
 
 document.getElementById('clearMelds').addEventListener('click', () => {
   melds = [];
   renderMeldList();
+  renderMeldValueBtns();
+  renderConcealedValueBtns();
+});
+
+document.getElementById('clearConcealed').addEventListener('click', () => {
+  concealedTiles = [];
+  renderConcealedList();
+  renderConcealedValueBtns();
   renderMeldValueBtns();
 });
 
@@ -333,7 +479,7 @@ document.getElementById('calculateBtn').addEventListener('click', async () => {
 
   try {
     const payload = {
-      concealed_tiles: concealedTiles,
+      concealed_tiles: concealedTiles.flatMap(g => g.tiles),
       melds: melds,
       is_self_drawn: isSelfDrawn,
       seat_wind: seatWind,
@@ -415,6 +561,10 @@ function displayResult(data) {
   }
 }
 
+renderConcealedTypeTabs();
+renderConcealedSuitTabs();
+renderConcealedValueBtns();
+renderConcealedList();
 renderMeldTypeTabs();
 renderMeldSuitTabs();
 renderMeldValueBtns();

@@ -96,19 +96,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   </div>
 
   <div class="card">
-    <h2>Concealed Tiles (select your hand)</h2>
-    <div class="tile-picker">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
-        <div class="suit-tabs" id="concealedTypeTabs" style="margin-bottom:0;"></div>
-      </div>
-      <div class="suit-tabs" id="suitTabs"></div>
-      <div class="value-btns" id="valueBtns"></div>
-    </div>
-    <div class="tile-grid" id="concealedTiles"></div>
-    <div style="margin-top:8px"><button id="clearHand" style="font-size:13px;padding:4px 12px">Clear Hand</button></div>
-  </div>
-
-  <div class="card">
     <h2>Melds (revealed)</h2>
     <div class="tile-picker">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
@@ -144,8 +131,6 @@ const ALL_SUITS = ['bamboo','characters','dots','wind','dragon'];
 
 let concealedTiles = [];
 let melds = [];
-let selectedSuit = 'bamboo';
-let selectedConcealedType = 'single';
 let selectedMeldType = 'pong';
 let selectedMeldSuit = 'bamboo';
 
@@ -181,84 +166,6 @@ function renderScoreboard() {
   `).join('');
 }
 
-const CONCEALED_TYPES = ['single', 'pair', 'pong', 'kong', 'chow'];
-const CONCEALED_TYPE_LABELS = { single: 'Single', pair: 'Pair', pong: 'Pong', kong: 'Kong', chow: 'Chow' };
-
-function renderConcealedTypeTabs() {
-  const el = document.getElementById('concealedTypeTabs');
-  el.innerHTML = CONCEALED_TYPES.map(t => `<div class="suit-tab ${t === selectedConcealedType ? 'active' : ''}" data-type="${t}">${CONCEALED_TYPE_LABELS[t]}</div>`).join('');
-  el.querySelectorAll('.suit-tab').forEach(tab => {
-    tab.addEventListener('click', () => { 
-      selectedConcealedType = tab.dataset.type; 
-      renderConcealedTypeTabs(); 
-      renderSuitTabs(); 
-      renderValueBtns(); 
-    });
-  });
-}
-
-function renderSuitTabs() {
-  const el = document.getElementById('suitTabs');
-  const suits = selectedConcealedType === 'chow' ? VALUE_SUITS : ALL_SUITS;
-  if (selectedConcealedType === 'chow' && !VALUE_SUITS.includes(selectedSuit)) {
-    selectedSuit = 'bamboo';
-  }
-  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedSuit ? 'active' : ''}" data-suit="${s}">${SUIT_LABELS[s]}</div>`).join('');
-  el.querySelectorAll('.suit-tab').forEach(tab => {
-    tab.addEventListener('click', () => { 
-      selectedSuit = tab.dataset.suit; 
-      renderSuitTabs(); 
-      renderValueBtns(); 
-    });
-  });
-}
-
-function renderValueBtns() {
-  const el = document.getElementById('valueBtns');
-  const suit = selectedSuit;
-  const type = selectedConcealedType;
-  
-  const addBtn = (v, label) => {
-    let disabled = false;
-    if (type === 'single') {
-      if (getTileCount(suit, v) + 1 > 4) disabled = true;
-      if (concealedTiles.length + 1 > 14) disabled = true;
-    } else if (type === 'pair') {
-      if (getTileCount(suit, v) + 2 > 4) disabled = true;
-      if (concealedTiles.length + 2 > 14) disabled = true;
-    } else if (type === 'pong') {
-      if (getTileCount(suit, v) + 3 > 4) disabled = true;
-      if (concealedTiles.length + 3 > 14) disabled = true;
-    } else if (type === 'kong') {
-      if (getTileCount(suit, v) + 4 > 4) disabled = true;
-      if (concealedTiles.length + 4 > 14) disabled = true;
-    } else if (type === 'chow') {
-      for (let off = 0; off < 3; off++) {
-        if (getTileCount(suit, v + off) + 1 > 4) disabled = true;
-      }
-      if (concealedTiles.length + 3 > 14) disabled = true;
-    }
-    return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled ? 'disabled' : ''}>${label}</button>`;
-  };
-
-  if (suit === 'wind') {
-    el.innerHTML = [1,2,3,4].map(v => addBtn(v, WIND_NAMES[v-1])).join('');
-  } else if (suit === 'dragon') {
-    el.innerHTML = [1,2,3].map(v => addBtn(v, DRAGON_NAMES[v])).join('');
-  } else {
-    const maxVal = type === 'chow' ? 7 : 9;
-    const vals = Array.from({length: maxVal}, (_, i) => i + 1);
-    el.innerHTML = vals.map(v => addBtn(v, v)).join('');
-  }
-  el.querySelectorAll('.value-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!btn.disabled) {
-        addTile(btn.dataset.suit, parseInt(btn.dataset.value));
-      }
-    });
-  });
-}
-
 function tileSymbol(suit, value) {
   const arr = SUIT_SYMBOLS[suit];
   if (!arr) return value;
@@ -269,40 +176,6 @@ function tileSymbol(suit, value) {
 function tileLabel(suit, value) {
   const sym = tileSymbol(suit, value);
   return suit === 'dragon' ? sym.charAt(0) : (suit === 'wind' ? WIND_NAMES[value-1].charAt(0)+WIND_NAMES[value-1].slice(1,2) : sym);
-}
-
-function addTile(suit, value) {
-  const type = selectedConcealedType;
-  let toAdd = [];
-  if (type === 'single') toAdd.push({suit, value});
-  else if (type === 'pair') toAdd.push({suit, value}, {suit, value});
-  else if (type === 'pong') toAdd.push({suit, value}, {suit, value}, {suit, value});
-  else if (type === 'kong') toAdd.push({suit, value}, {suit, value}, {suit, value}, {suit, value});
-  else if (type === 'chow') toAdd.push({suit, value}, {suit, value: value + 1}, {suit, value: value + 2});
-
-  if (concealedTiles.length + toAdd.length > 14) return;
-  concealedTiles.push(...toAdd);
-  renderConcealedTiles();
-  renderValueBtns();
-  renderMeldValueBtns();
-}
-
-function removeTile(idx) {
-  concealedTiles.splice(idx, 1);
-  renderConcealedTiles();
-  renderValueBtns();
-  renderMeldValueBtns();
-}
-
-function renderConcealedTiles() {
-  const el = document.getElementById('concealedTiles');
-  if (concealedTiles.length === 0) {
-    el.innerHTML = '<span class="empty-tiles">Click a tile above to add to your hand</span>';
-    return;
-  }
-  el.innerHTML = concealedTiles.map((t, i) =>
-    `<div class="tile ${SUIT_CLASS[t.suit]}" onclick="removeTile(${i})">${tileSymbol(t.suit, t.value)}<span class="label">x</span></div>`
-  ).join('');
 }
 
 function renderMeldList() {
@@ -327,7 +200,6 @@ function renderMeldList() {
 function removeMeld(idx) {
   melds.splice(idx, 1);
   renderMeldList();
-  renderValueBtns();
   renderMeldValueBtns();
 }
 
@@ -418,21 +290,12 @@ function addMeldAction(suit, value) {
     melds.push({ meld_type: type, tiles, concealed });
   }
   renderMeldList();
-  renderValueBtns();
   renderMeldValueBtns();
 }
-
-document.getElementById('clearHand').addEventListener('click', () => {
-  concealedTiles = [];
-  renderConcealedTiles();
-  renderValueBtns();
-  renderMeldValueBtns();
-});
 
 document.getElementById('clearMelds').addEventListener('click', () => {
   melds = [];
   renderMeldList();
-  renderValueBtns();
   renderMeldValueBtns();
 });
 
@@ -552,9 +415,6 @@ function displayResult(data) {
   }
 }
 
-renderSuitTabs();
-renderValueBtns();
-renderConcealedTiles();
 renderMeldTypeTabs();
 renderMeldSuitTabs();
 renderMeldValueBtns();

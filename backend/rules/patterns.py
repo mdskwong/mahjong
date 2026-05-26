@@ -308,6 +308,11 @@ def detect_fans(hand: Hand, melds: List[Meld]) -> List[FanResult]:
 
 
 def score_hand(hand: Hand) -> dict:
+    counts = Counter(hand.all_tiles())
+    for tile, count in counts.items():
+        if count > 4:
+            return {"error": f"Invalid hand: More than 4 tiles of {tile.suit.value} {tile.value}", "total_fan": 0, "fans": [], "total_payable": 0}
+
     if len(hand.concealed_tiles) % 3 != 2:
         return {"error": f"Invalid hand size: {len(hand.concealed_tiles)} tiles (must be 2 mod 3)", "total_fan": 0, "fans": [], "total_payable": 0}
 

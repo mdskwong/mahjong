@@ -38,6 +38,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .value-btns { display: flex; gap: 4px; flex-wrap: wrap; }
 .value-btn { width: 36px; height: 36px; border-radius: 6px; cursor: pointer; font-size: 14px; border: 1px solid transparent; background: #0f3460; color: #e0e0e0; transition: all 0.15s; }
 .value-btn:hover { border-color: #e94560; }
+.value-btn:disabled:hover { border-color: transparent; }
 .result { margin-top: 16px; padding: 16px; border-radius: 8px; background: #0f3460; }
 .result .fan-header { font-size: 20px; font-weight: bold; color: #e94560; }
 .result .score { font-size: 32px; font-weight: bold; color: #2ecc71; }
@@ -146,6 +147,19 @@ let players = {
   north: { name: 'Player North', score: 0 }
 };
 
+function getTileCount(suit, value) {
+  let count = 0;
+  for (const t of concealedTiles) {
+    if (t.suit === suit && t.value === value) count++;
+  }
+  for (const m of melds) {
+    for (const t of m.tiles) {
+      if (t.suit === suit && t.value === value) count++;
+    }
+  }
+  return count;
+}
+
 function renderScoreboard() {
   const el = document.getElementById('scoreboardGrid');
   el.innerHTML = Object.entries(players).map(([wind, p]) => `
@@ -168,15 +182,26 @@ function renderSuitTabs() {
 function renderValueBtns() {
   const el = document.getElementById('valueBtns');
   const suit = selectedSuit;
+  
+  const addBtn = (v, label) => {
+    const count = getTileCount(suit, v);
+    const disabled = count >= 4 ? 'disabled' : '';
+    return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled}>${label}</button>`;
+  };
+
   if (suit === 'wind') {
-    el.innerHTML = [1,2,3,4].map(v => `<button class="value-btn" data-suit="${suit}" data-value="${v}">${WIND_NAMES[v-1]}</button>`).join('');
+    el.innerHTML = [1,2,3,4].map(v => addBtn(v, WIND_NAMES[v-1])).join('');
   } else if (suit === 'dragon') {
-    el.innerHTML = [1,2,3].map(v => `<button class="value-btn" data-suit="${suit}" data-value="${v}">${DRAGON_NAMES[v]}</button>`).join('');
+    el.innerHTML = [1,2,3].map(v => addBtn(v, DRAGON_NAMES[v])).join('');
   } else {
-    el.innerHTML = [1,2,3,4,5,6,7,8,9].map(v => `<button class="value-btn" data-suit="${suit}" data-value="${v}">${v}</button>`).join('');
+    el.innerHTML = [1,2,3,4,5,6,7,8,9].map(v => addBtn(v, v)).join('');
   }
   el.querySelectorAll('.value-btn').forEach(btn => {
-    btn.addEventListener('click', () => addTile(btn.dataset.suit, parseInt(btn.dataset.value)));
+    btn.addEventListener('click', () => {
+      if (!btn.disabled) {
+        addTile(btn.dataset.suit, parseInt(btn.dataset.value));
+      }
+    });
   });
 }
 
@@ -194,13 +219,16 @@ function tileLabel(suit, value) {
 
 function addTile(suit, value) {
   if (concealedTiles.length >= 14) return;
+  if (getTileCount(suit, value) >= 4) return;
   concealedTiles.push({suit, value});
   renderConcealedTiles();
+  renderValueBtns();
 }
 
 function removeTile(idx) {
   concealedTiles.splice(idx, 1);
   renderConcealedTiles();
+  renderValueBtns();
 }
 
 function renderConcealedTiles() {
@@ -228,6 +256,7 @@ function renderMeldList() {
 function removeMeld(idx) {
   melds.splice(idx, 1);
   renderMeldList();
+  renderValueBtns();
 }
 
 document.getElementById('addMeld').addEventListener('click', () => {
@@ -238,20 +267,32 @@ document.getElementById('addMeld').addEventListener('click', () => {
 
   if (type === 'pong' || type === 'kong') {
     const count = type === 'kong' ? 4 : 3;
+    if (getTileCount(suit, value) + count > 4) {
+      alert(`Cannot add ${type} of ${suit} ${value} because it exceeds 4 tiles of the same type.`);
+      return;
+    }
     const tiles = Array(count).fill(null).map(() => ({suit, value}));
     melds.push({ meld_type: type, tiles, concealed });
   } else if (type === 'chow') {
     if (VALUE_SUITS.indexOf(suit) === -1) { alert('Chow only works with bamboo, characters, or dots'); return; }
     if (value > 7) { alert('Chow start value must be 1-7'); return; }
+    for (let off = 0; off < 3; off++) {
+      if (getTileCount(suit, value + off) + 1 > 4) {
+        alert(`Cannot add chow starting at ${suit} ${value} because it exceeds 4 tiles of ${suit} ${value + off}.`);
+        return;
+      }
+    }
     const tiles = [0,1,2].map(off => ({suit, value: value + off}));
     melds.push({ meld_type: type, tiles, concealed });
   }
   renderMeldList();
+  renderValueBtns();
 });
 
 document.getElementById('clearHand').addEventListener('click', () => {
   concealedTiles = [];
   renderConcealedTiles();
+  renderValueBtns();
 });
 
 // Handle Self-Draw toggle

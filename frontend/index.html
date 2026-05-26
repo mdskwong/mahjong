@@ -49,10 +49,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #e74c3c; }
 .empty-tiles { color: #555; font-size: 14px; }
 .tile-picker { margin-bottom: 16px; }
-.add-meld-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid #0f3460; }
-.meld-list { margin-top: 8px; }
-.meld-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #1a2744; border-radius: 6px; margin-bottom: 4px; font-size: 14px; }
-.meld-item button { font-size: 12px; padding: 2px 8px; }
+.meld-list { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px; min-height: 60px; padding: 12px; background: #0f3460; border-radius: 8px; align-items: flex-start; }
+.meld-item { display: flex; flex-direction: column; gap: 8px; padding: 8px; background: #1a2744; border-radius: 6px; border: 1px solid transparent; transition: border-color 0.15s; }
+.meld-item:hover { border-color: #e94560; }
+.meld-item-header { display: flex; justify-content: space-between; align-items: center; }
+.meld-item-tiles { display: flex; gap: 4px; }
+.meld-item button { font-size: 12px; padding: 2px 8px; border-radius: 4px; }
 .tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #0f3460; }
 </style>
 </head>
@@ -96,6 +98,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   <div class="card">
     <h2>Concealed Tiles (select your hand)</h2>
     <div class="tile-picker">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <div class="suit-tabs" id="concealedTypeTabs" style="margin-bottom:0;"></div>
+      </div>
       <div class="suit-tabs" id="suitTabs"></div>
       <div class="value-btns" id="valueBtns"></div>
     </div>
@@ -105,16 +110,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
   <div class="card">
     <h2>Melds (revealed)</h2>
-    <div class="add-meld-section">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <select id="meldType"><option value="pong">Pong</option><option value="kong">Kong</option><option value="chow">Chow</option></select>
-        <select id="meldSuit"><option value="bamboo">Bamboo</option><option value="characters">Characters</option><option value="dots">Dots</option><option value="wind">Wind</option><option value="dragon">Dragon</option></select>
-        <select id="meldValue"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option></select>
-        <label style="font-size:13px">Concealed <input type="checkbox" id="meldConcealed"></label>
-        <button id="addMeld" style="font-size:13px;padding:4px 12px">+ Add Meld</button>
+    <div class="tile-picker">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <div class="suit-tabs" id="meldTypeTabs" style="margin-bottom:0;"></div>
+        <label style="font-size:13px; display:flex; align-items:center; gap:4px;">
+          <input type="checkbox" id="meldConcealedCb"> Concealed
+        </label>
       </div>
+      <div class="suit-tabs" id="meldSuitTabs"></div>
+      <div class="value-btns" id="meldValueBtns"></div>
     </div>
     <div class="meld-list" id="meldList"></div>
+    <div style="margin-top:8px"><button id="clearMelds" style="font-size:13px;padding:4px 12px">Clear Melds</button></div>
   </div>
 
   <button id="calculateBtn" style="width:100%;padding:14px;font-size:18px">Calculate Score</button>
@@ -138,6 +145,9 @@ const ALL_SUITS = ['bamboo','characters','dots','wind','dragon'];
 let concealedTiles = [];
 let melds = [];
 let selectedSuit = 'bamboo';
+let selectedConcealedType = 'single';
+let selectedMeldType = 'pong';
+let selectedMeldSuit = 'bamboo';
 
 // 4-Player Score State
 let players = {
@@ -171,22 +181,64 @@ function renderScoreboard() {
   `).join('');
 }
 
+const CONCEALED_TYPES = ['single', 'pair', 'pong', 'kong', 'chow'];
+const CONCEALED_TYPE_LABELS = { single: 'Single', pair: 'Pair', pong: 'Pong', kong: 'Kong', chow: 'Chow' };
+
+function renderConcealedTypeTabs() {
+  const el = document.getElementById('concealedTypeTabs');
+  el.innerHTML = CONCEALED_TYPES.map(t => `<div class="suit-tab ${t === selectedConcealedType ? 'active' : ''}" data-type="${t}">${CONCEALED_TYPE_LABELS[t]}</div>`).join('');
+  el.querySelectorAll('.suit-tab').forEach(tab => {
+    tab.addEventListener('click', () => { 
+      selectedConcealedType = tab.dataset.type; 
+      renderConcealedTypeTabs(); 
+      renderSuitTabs(); 
+      renderValueBtns(); 
+    });
+  });
+}
+
 function renderSuitTabs() {
   const el = document.getElementById('suitTabs');
-  el.innerHTML = ALL_SUITS.map(s => `<div class="suit-tab ${s === selectedSuit ? 'active' : ''}" data-suit="${s}">${SUIT_LABELS[s]}</div>`).join('');
+  const suits = selectedConcealedType === 'chow' ? VALUE_SUITS : ALL_SUITS;
+  if (selectedConcealedType === 'chow' && !VALUE_SUITS.includes(selectedSuit)) {
+    selectedSuit = 'bamboo';
+  }
+  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedSuit ? 'active' : ''}" data-suit="${s}">${SUIT_LABELS[s]}</div>`).join('');
   el.querySelectorAll('.suit-tab').forEach(tab => {
-    tab.addEventListener('click', () => { selectedSuit = tab.dataset.suit; renderSuitTabs(); renderValueBtns(); });
+    tab.addEventListener('click', () => { 
+      selectedSuit = tab.dataset.suit; 
+      renderSuitTabs(); 
+      renderValueBtns(); 
+    });
   });
 }
 
 function renderValueBtns() {
   const el = document.getElementById('valueBtns');
   const suit = selectedSuit;
+  const type = selectedConcealedType;
   
   const addBtn = (v, label) => {
-    const count = getTileCount(suit, v);
-    const disabled = count >= 4 ? 'disabled' : '';
-    return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled}>${label}</button>`;
+    let disabled = false;
+    if (type === 'single') {
+      if (getTileCount(suit, v) + 1 > 4) disabled = true;
+      if (concealedTiles.length + 1 > 14) disabled = true;
+    } else if (type === 'pair') {
+      if (getTileCount(suit, v) + 2 > 4) disabled = true;
+      if (concealedTiles.length + 2 > 14) disabled = true;
+    } else if (type === 'pong') {
+      if (getTileCount(suit, v) + 3 > 4) disabled = true;
+      if (concealedTiles.length + 3 > 14) disabled = true;
+    } else if (type === 'kong') {
+      if (getTileCount(suit, v) + 4 > 4) disabled = true;
+      if (concealedTiles.length + 4 > 14) disabled = true;
+    } else if (type === 'chow') {
+      for (let off = 0; off < 3; off++) {
+        if (getTileCount(suit, v + off) + 1 > 4) disabled = true;
+      }
+      if (concealedTiles.length + 3 > 14) disabled = true;
+    }
+    return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled ? 'disabled' : ''}>${label}</button>`;
   };
 
   if (suit === 'wind') {
@@ -194,7 +246,9 @@ function renderValueBtns() {
   } else if (suit === 'dragon') {
     el.innerHTML = [1,2,3].map(v => addBtn(v, DRAGON_NAMES[v])).join('');
   } else {
-    el.innerHTML = [1,2,3,4,5,6,7,8,9].map(v => addBtn(v, v)).join('');
+    const maxVal = type === 'chow' ? 7 : 9;
+    const vals = Array.from({length: maxVal}, (_, i) => i + 1);
+    el.innerHTML = vals.map(v => addBtn(v, v)).join('');
   }
   el.querySelectorAll('.value-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -218,17 +272,26 @@ function tileLabel(suit, value) {
 }
 
 function addTile(suit, value) {
-  if (concealedTiles.length >= 14) return;
-  if (getTileCount(suit, value) >= 4) return;
-  concealedTiles.push({suit, value});
+  const type = selectedConcealedType;
+  let toAdd = [];
+  if (type === 'single') toAdd.push({suit, value});
+  else if (type === 'pair') toAdd.push({suit, value}, {suit, value});
+  else if (type === 'pong') toAdd.push({suit, value}, {suit, value}, {suit, value});
+  else if (type === 'kong') toAdd.push({suit, value}, {suit, value}, {suit, value}, {suit, value});
+  else if (type === 'chow') toAdd.push({suit, value}, {suit, value: value + 1}, {suit, value: value + 2});
+
+  if (concealedTiles.length + toAdd.length > 14) return;
+  concealedTiles.push(...toAdd);
   renderConcealedTiles();
   renderValueBtns();
+  renderMeldValueBtns();
 }
 
 function removeTile(idx) {
   concealedTiles.splice(idx, 1);
   renderConcealedTiles();
   renderValueBtns();
+  renderMeldValueBtns();
 }
 
 function renderConcealedTiles() {
@@ -248,51 +311,129 @@ function renderMeldList() {
     el.innerHTML = '<span class="empty-tiles">No melds added yet</span>';
     return;
   }
-  el.innerHTML = melds.map((m, i) =>
-    `<div class="meld-item"><span class="tag">${m.meldType}</span> ${m.tiles.map(t => tileSymbol(t.suit, t.value)).join(' ')} ${m.concealed ? '<span class="tag">conc</span>' : ''} <button onclick="removeMeld(${i})">✕</button></div>`
-  ).join('');
+  el.innerHTML = melds.map((m, i) => {
+    const tilesHtml = m.tiles.map(t => `<div class="tile ${SUIT_CLASS[t.suit]}">${tileSymbol(t.suit, t.value)}</div>`).join('');
+    return `
+      <div class="meld-item">
+        <div class="meld-item-header">
+          <span class="tag" style="text-transform: capitalize;">${m.meld_type} ${m.concealed ? '(Conc)' : ''}</span>
+          <button onclick="removeMeld(${i})">✕</button>
+        </div>
+        <div class="meld-item-tiles">${tilesHtml}</div>
+      </div>`;
+  }).join('');
 }
 
 function removeMeld(idx) {
   melds.splice(idx, 1);
   renderMeldList();
   renderValueBtns();
+  renderMeldValueBtns();
 }
 
-document.getElementById('addMeld').addEventListener('click', () => {
-  const type = document.getElementById('meldType').value;
-  const suit = document.getElementById('meldSuit').value;
-  const value = parseInt(document.getElementById('meldValue').value);
-  const concealed = document.getElementById('meldConcealed').checked;
+const MELD_TYPES = ['pong', 'kong', 'chow'];
+const MELD_TYPE_LABELS = { pong: 'Pong', kong: 'Kong', chow: 'Chow' };
+
+function renderMeldTypeTabs() {
+  const el = document.getElementById('meldTypeTabs');
+  el.innerHTML = MELD_TYPES.map(t => `<div class="suit-tab ${t === selectedMeldType ? 'active' : ''}" data-type="${t}">${MELD_TYPE_LABELS[t]}</div>`).join('');
+  el.querySelectorAll('.suit-tab').forEach(tab => {
+    tab.addEventListener('click', () => { 
+      selectedMeldType = tab.dataset.type; 
+      renderMeldTypeTabs(); 
+      renderMeldSuitTabs(); 
+      renderMeldValueBtns(); 
+    });
+  });
+}
+
+function renderMeldSuitTabs() {
+  const el = document.getElementById('meldSuitTabs');
+  const suits = selectedMeldType === 'chow' ? VALUE_SUITS : ALL_SUITS;
+  if (selectedMeldType === 'chow' && !VALUE_SUITS.includes(selectedMeldSuit)) {
+    selectedMeldSuit = 'bamboo';
+  }
+  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedMeldSuit ? 'active' : ''}" data-suit="${s}">${SUIT_LABELS[s]}</div>`).join('');
+  el.querySelectorAll('.suit-tab').forEach(tab => {
+    tab.addEventListener('click', () => { 
+      selectedMeldSuit = tab.dataset.suit; 
+      renderMeldSuitTabs(); 
+      renderMeldValueBtns(); 
+    });
+  });
+}
+
+function renderMeldValueBtns() {
+  const el = document.getElementById('meldValueBtns');
+  const suit = selectedMeldSuit;
+  const type = selectedMeldType;
+  
+  const addBtn = (v, label) => {
+    let disabled = false;
+    if (type === 'pong' || type === 'kong') {
+      const count = type === 'kong' ? 4 : 3;
+      if (getTileCount(suit, v) + count > 4) disabled = true;
+    } else if (type === 'chow') {
+      for (let off = 0; off < 3; off++) {
+        if (getTileCount(suit, v + off) + 1 > 4) disabled = true;
+      }
+    }
+    return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+  };
+
+  if (suit === 'wind') {
+    el.innerHTML = [1,2,3,4].map(v => addBtn(v, WIND_NAMES[v-1])).join('');
+  } else if (suit === 'dragon') {
+    el.innerHTML = [1,2,3].map(v => addBtn(v, DRAGON_NAMES[v])).join('');
+  } else {
+    const maxVal = type === 'chow' ? 7 : 9;
+    const vals = Array.from({length: maxVal}, (_, i) => i + 1);
+    el.innerHTML = vals.map(v => addBtn(v, v)).join('');
+  }
+  el.querySelectorAll('.value-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!btn.disabled) {
+        addMeldAction(btn.dataset.suit, parseInt(btn.dataset.value));
+      }
+    });
+  });
+}
+
+function addMeldAction(suit, value) {
+  const type = selectedMeldType;
+  const concealed = document.getElementById('meldConcealedCb').checked;
 
   if (type === 'pong' || type === 'kong') {
     const count = type === 'kong' ? 4 : 3;
-    if (getTileCount(suit, value) + count > 4) {
-      alert(`Cannot add ${type} of ${suit} ${value} because it exceeds 4 tiles of the same type.`);
-      return;
-    }
+    if (getTileCount(suit, value) + count > 4) return;
     const tiles = Array(count).fill(null).map(() => ({suit, value}));
     melds.push({ meld_type: type, tiles, concealed });
   } else if (type === 'chow') {
-    if (VALUE_SUITS.indexOf(suit) === -1) { alert('Chow only works with bamboo, characters, or dots'); return; }
-    if (value > 7) { alert('Chow start value must be 1-7'); return; }
+    if (VALUE_SUITS.indexOf(suit) === -1) return;
+    if (value > 7) return;
     for (let off = 0; off < 3; off++) {
-      if (getTileCount(suit, value + off) + 1 > 4) {
-        alert(`Cannot add chow starting at ${suit} ${value} because it exceeds 4 tiles of ${suit} ${value + off}.`);
-        return;
-      }
+      if (getTileCount(suit, value + off) + 1 > 4) return;
     }
     const tiles = [0,1,2].map(off => ({suit, value: value + off}));
     melds.push({ meld_type: type, tiles, concealed });
   }
   renderMeldList();
   renderValueBtns();
-});
+  renderMeldValueBtns();
+}
 
 document.getElementById('clearHand').addEventListener('click', () => {
   concealedTiles = [];
   renderConcealedTiles();
   renderValueBtns();
+  renderMeldValueBtns();
+});
+
+document.getElementById('clearMelds').addEventListener('click', () => {
+  melds = [];
+  renderMeldList();
+  renderValueBtns();
+  renderMeldValueBtns();
 });
 
 // Handle Self-Draw toggle
@@ -414,6 +555,9 @@ function displayResult(data) {
 renderSuitTabs();
 renderValueBtns();
 renderConcealedTiles();
+renderMeldTypeTabs();
+renderMeldSuitTabs();
+renderMeldValueBtns();
 renderMeldList();
 
 async function fetchState() {

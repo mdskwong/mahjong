@@ -60,43 +60,46 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 </head>
 <body>
 <div class="container">
-  <h1>🀄 HK Mahjong Score Calculator</h1>
+  <div style="display: flex; justify-content: flex-end; margin-bottom: -10px; position: relative; z-index: 10;">
+    <button id="langToggleBtn" style="font-size:14px; padding:6px 12px; background:#0f3460; border: 1px solid #e94560; color:#fff; border-radius:6px; cursor:pointer; transition:background 0.2s;">中文</button>
+  </div>
+  <h1 data-i18n="title">🀄 HK Mahjong Score Calculator</h1>
 
   <div class="card" id="scoreboardCard">
     <h2 style="display:flex; justify-content:space-between; align-items:center;">
-      Scoreboard
+      <span data-i18n="scoreboard">Scoreboard</span>
       <div>
-        <button id="rotateWindsBtn" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560; margin-right: 8px;">Rotate Winds</button>
-        <button id="editPlayersBtn" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560;">Edit Names</button>
+        <button id="rotateWindsBtn" data-i18n="rotateWinds" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560; margin-right: 8px;">Rotate Winds</button>
+        <button id="editPlayersBtn" data-i18n="editNames" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560;">Edit Names</button>
       </div>
     </h2>
     <div id="editPlayersForm" style="display:none; margin-bottom: 16px; background: #1a2744; padding: 12px; border-radius: 8px;">
       <div class="grid">
-        <div class="form-row"><label>East</label><input type="text" id="inputNameEast" style="width:100%"></div>
-        <div class="form-row"><label>South</label><input type="text" id="inputNameSouth" style="width:100%"></div>
-        <div class="form-row"><label>West</label><input type="text" id="inputNameWest" style="width:100%"></div>
-        <div class="form-row"><label>North</label><input type="text" id="inputNameNorth" style="width:100%"></div>
+        <div class="form-row"><label data-i18n="east">East</label><input type="text" id="inputNameEast" style="width:100%"></div>
+        <div class="form-row"><label data-i18n="south">South</label><input type="text" id="inputNameSouth" style="width:100%"></div>
+        <div class="form-row"><label data-i18n="west">West</label><input type="text" id="inputNameWest" style="width:100%"></div>
+        <div class="form-row"><label data-i18n="north">North</label><input type="text" id="inputNameNorth" style="width:100%"></div>
       </div>
       <div style="margin-top:12px; display:flex; gap:8px;">
-        <button id="savePlayersBtn" style="font-size:13px;padding:6px 16px">Save Players</button>
-        <button id="cancelPlayersBtn" style="font-size:13px;padding:6px 16px; background:#555;">Cancel</button>
+        <button id="savePlayersBtn" data-i18n="savePlayers" style="font-size:13px;padding:6px 16px">Save Players</button>
+        <button id="cancelPlayersBtn" data-i18n="cancel" style="font-size:13px;padding:6px 16px; background:#555;">Cancel</button>
       </div>
     </div>
     <div class="scoreboard-grid" id="scoreboardGrid"></div>
   </div>
 
   <div class="card">
-    <h2>Settings</h2>
+    <h2 data-i18n="settings">Settings</h2>
     <div class="grid">
-      <div class="form-row"><label>Winner</label><select id="seatWind"><option value="east">East</option><option value="south">South</option><option value="west">West</option><option value="north">North</option></select></div>
-      <div class="form-row"><label>Prevalent Wind</label><select id="prevalentWind"><option value="east">East</option><option value="south">South</option><option value="west">West</option><option value="north">North</option></select></div>
-      <div class="form-row"><label>Self-Draw</label><input type="checkbox" id="selfDraw"></div>
-      <div class="form-row" id="discarderRow"><label>Discarder</label><select id="discarderWind"><option value="east">East</option><option value="south">South</option><option value="west">West</option><option value="north">North</option></select></div>
+      <div class="form-row"><label data-i18n="winner">Winner</label><select id="seatWind"></select></div>
+      <div class="form-row"><label data-i18n="prevalentWind">Prevalent Wind</label><select id="prevalentWind"></select></div>
+      <div class="form-row"><label data-i18n="selfDraw">Self-Draw</label><input type="checkbox" id="selfDraw"></div>
+      <div class="form-row" id="discarderRow"><label data-i18n="discarder">Discarder</label><select id="discarderWind"></select></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Concealed Tiles (select your hand)</h2>
+    <h2 data-i18n="concealedTitle">Concealed Tiles (select your hand)</h2>
     <div class="tile-picker">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
         <div class="suit-tabs" id="concealedTypeTabs" style="margin-bottom:0;"></div>
@@ -105,30 +108,29 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
       <div class="value-btns" id="concealedValueBtns"></div>
     </div>
     <div class="meld-list" id="concealedList"></div>
-    <div style="margin-top:8px"><button id="clearConcealed" style="font-size:13px;padding:4px 12px">Clear Hand</button></div>
+    <div style="margin-top:8px"><button id="clearConcealed" data-i18n="clearHand" style="font-size:13px;padding:4px 12px">Clear Hand</button></div>
   </div>
 
   <div class="card">
-    <h2>Melds (revealed)</h2>
+    <h2 data-i18n="meldsTitle">Melds (revealed)</h2>
     <div class="tile-picker">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
         <div class="suit-tabs" id="meldTypeTabs" style="margin-bottom:0;"></div>
         <label style="font-size:13px; display:flex; align-items:center; gap:4px;">
-          <input type="checkbox" id="meldConcealedCb"> Concealed
+          <input type="checkbox" id="meldConcealedCb"> <span data-i18n="concealedCb">Concealed</span>
         </label>
       </div>
       <div class="suit-tabs" id="meldSuitTabs"></div>
       <div class="value-btns" id="meldValueBtns"></div>
     </div>
     <div class="meld-list" id="meldList"></div>
-    <div style="margin-top:8px"><button id="clearMelds" style="font-size:13px;padding:4px 12px">Clear Melds</button></div>
+    <div style="margin-top:8px"><button id="clearMelds" data-i18n="clearMelds" style="font-size:13px;padding:4px 12px">Clear Melds</button></div>
   </div>
 
-  <button id="calculateBtn" style="width:100%;padding:14px;font-size:18px">Calculate Score</button>
+  <button id="calculateBtn" data-i18n="calculateBtn" style="width:100%;padding:14px;font-size:18px">Calculate Score</button>
   <div id="result"></div>
 </div>
 <script>
-const SUIT_LABELS = { bamboo: '🀐 Bamboo', characters: '🀇 Characters', dots: '🀙 Dots', wind: '🀀 Wind', dragon: '🀄 Dragon' };
 const SUIT_CLASS = { bamboo: 'bamboo', characters: 'characters', dots: 'dots', wind: 'wind', dragon: 'dragon' };
 const SUIT_SYMBOLS = {
   bamboo: ['🀐','🀑','🀒','🀓','🀔','🀕','🀖','🀗','🀘'],
@@ -141,6 +143,126 @@ const DRAGON_NAMES = ['','Red','Green','White'];
 const WIND_NAMES = ['East','South','West','North'];
 const VALUE_SUITS = ['bamboo','characters','dots'];
 const ALL_SUITS = ['bamboo','characters','dots','wind','dragon'];
+
+let currentLang = 'en';
+const translations = {
+  en: {
+    title: "🀄 HK Mahjong Score Calculator",
+    langToggle: "中文",
+    scoreboard: "Scoreboard",
+    rotateWinds: "Rotate Winds",
+    editNames: "Edit Names",
+    east: "East", south: "South", west: "West", north: "North",
+    savePlayers: "Save Players", cancel: "Cancel",
+    settings: "Settings",
+    winner: "Winner", prevalentWind: "Prevalent Wind",
+    selfDraw: "Self-Draw", discarder: "Discarder",
+    concealedTitle: "Concealed Tiles (select your hand)",
+    clearHand: "Clear Hand",
+    meldsTitle: "Melds (revealed)",
+    concealedCb: "Concealed", clearMelds: "Clear Melds",
+    calculateBtn: "Calculate Score", calculating: "Calculating...",
+    emptyHand: "Click a tile above to add to your hand",
+    emptyMelds: "No melds added yet",
+    errorSameWind: "Winner and Discarder cannot be the same wind!",
+    applyToScoreboard: "Apply to Scoreboard", scoreApplied: "Score Applied!",
+    suitBamboo: "🀐 Bamboo", suitCharacters: "🀇 Characters", suitDots: "🀙 Dots", suitWind: "🀀 Wind", suitDragon: "🀄 Dragon",
+    typeSingle: "Single", typePair: "Pair", typePong: "Pong", typeKong: "Kong", typeChow: "Chow",
+    concTag: "(Conc)",
+    total: "Total", fan: "Fan", points: "points",
+    limitHand: "LIMIT HAND", limitBase: "Limit hand (10000 base)",
+    base: "Base: 1 point × 2^fan = {0} base",
+    dealerMult: " × 2 (dealer) = {0}",
+    fanPatterns: "Fan Patterns:",
+    commonHand: "Common Hand (0 fan) - base 1 point",
+    pattern_Ping_Hu: "Ping Hu (Peace Hand)", pattern_Self_Pick: "Self-Pick",
+    pattern_Fully_Concealed: "Fully Concealed Hand", pattern_Dragon_Pong: "Dragon Pong",
+    pattern_Value_Wind: "Value Wind Pong", pattern_Mixed_Triple: "Mixed Triple Chow",
+    pattern_Half_Flush: "Mixed One Suit (Half Flush)", pattern_All_Pongs: "All Pongs",
+    pattern_Double_Dragon: "Double Dragon Pong", pattern_Double_Wind: "Double Value Wind Pong",
+    pattern_Outside: "Outside Hand", pattern_Pure_Triple: "Pure Triple Chow",
+    pattern_All_Simples: "All Simples", pattern_Three_Concealed: "Three Concealed Pongs",
+    pattern_Little_Three: "Little Three Dragons", pattern_Three_Kongs: "Three Kongs",
+    pattern_All_Terminals: "All Terminals and Honors", pattern_Big_Three: "Big Three Dragons",
+    pattern_Four_Small: "Four Small Winds", pattern_Full_Flush: "Pure One Suit (Full Flush)",
+    errNotWinning: "Not a winning hand - cannot form 4 melds + 1 pair",
+    errTooFew: "Too few tiles in hand"
+  },
+  zh: {
+    title: "🀄 香港麻雀計番神器",
+    langToggle: "English",
+    scoreboard: "計分板",
+    rotateWinds: "轉風位",
+    editNames: "更改名稱",
+    east: "東", south: "南", west: "西", north: "北",
+    savePlayers: "儲存玩家", cancel: "取消",
+    settings: "設定",
+    winner: "食糊者", prevalentWind: "圈風",
+    selfDraw: "自摸", discarder: "出銃者",
+    concealedTitle: "手牌 (選擇你的牌)",
+    clearHand: "清空手牌",
+    meldsTitle: "鳴牌 (已下的牌)",
+    concealedCb: "暗現/暗槓", clearMelds: "清空鳴牌",
+    calculateBtn: "計算番數", calculating: "計算中...",
+    emptyHand: "點擊上方牌以加入手牌",
+    emptyMelds: "尚未加入鳴牌",
+    errorSameWind: "食糊者與出銃者不能為同一風位！",
+    applyToScoreboard: "應用至計分板", scoreApplied: "已應用！",
+    suitBamboo: "🀐 索子", suitCharacters: "🀇 萬子", suitDots: "🀙 筒子", suitWind: "🀀 風牌", suitDragon: "🀄 箭牌",
+    typeSingle: "單張", typePair: "眼", typePong: "碰", typeKong: "槓", typeChow: "上",
+    concTag: "(暗)",
+    total: "總共", fan: "番", points: "分",
+    limitHand: "爆棚", limitBase: "爆棚 (10000 底)",
+    base: "底分: 1 分 × 2^番數 = {0} 底",
+    dealerMult: " × 2 (莊家) = {0}",
+    fanPatterns: "番型:",
+    commonHand: "雞糊 (0番) - 底 1 分",
+    pattern_Ping_Hu: "平糊", pattern_Self_Pick: "自摸",
+    pattern_Fully_Concealed: "門前清", pattern_Dragon_Pong: "番牌 (箭牌)",
+    pattern_Value_Wind: "番牌 (風牌)", pattern_Mixed_Triple: "三色同順",
+    pattern_Half_Flush: "混一色", pattern_All_Pongs: "對對糊",
+    pattern_Double_Dragon: "雙箭牌", pattern_Double_Wind: "雙風牌",
+    pattern_Outside: "混全帶幺九", pattern_Pure_Triple: "一色三同順",
+    pattern_All_Simples: "斷幺九", pattern_Three_Concealed: "三暗刻",
+    pattern_Little_Three: "小三元", pattern_Three_Kongs: "三槓",
+    pattern_All_Terminals: "混老頭", pattern_Big_Three: "大三元",
+    pattern_Four_Small: "小四喜", pattern_Full_Flush: "清一色",
+    errNotWinning: "這不是食糊牌型 - 無法組成 4 搭 1 眼",
+    errTooFew: "手牌數量不足"
+  }
+};
+
+function t(key, ...args) {
+  let str = translations[currentLang][key] || key;
+  args.forEach((arg, i) => str = str.replace(`{${i}}`, arg));
+  return str;
+}
+
+const backendPatternMap = {
+  "Ping Hu (Peace Hand)": "pattern_Ping_Hu",
+  "Self-Pick": "pattern_Self_Pick",
+  "Fully Concealed Hand": "pattern_Fully_Concealed",
+  "Dragon Pong": "pattern_Dragon_Pong",
+  "Value Wind Pong": "pattern_Value_Wind",
+  "Mixed Triple Chow": "pattern_Mixed_Triple",
+  "Mixed One Suit (Half Flush)": "pattern_Half_Flush",
+  "All Pongs": "pattern_All_Pongs",
+  "Double Dragon Pong": "pattern_Double_Dragon",
+  "Double Value Wind Pong": "pattern_Double_Wind",
+  "Outside Hand": "pattern_Outside",
+  "Pure Triple Chow": "pattern_Pure_Triple",
+  "All Simples": "pattern_All_Simples",
+  "Three Concealed Pongs": "pattern_Three_Concealed",
+  "Little Three Dragons": "pattern_Little_Three",
+  "Three Kongs": "pattern_Three_Kongs",
+  "All Terminals and Honors": "pattern_All_Terminals",
+  "Big Three Dragons": "pattern_Big_Three",
+  "Four Small Winds": "pattern_Four_Small",
+  "Pure One Suit (Full Flush)": "pattern_Full_Flush"
+};
+
+const suitI18nMap = { bamboo: 'suitBamboo', characters: 'suitCharacters', dots: 'suitDots', wind: 'suitWind', dragon: 'suitDragon' };
+const typeI18nMap = { single: 'typeSingle', pair: 'typePair', pong: 'typePong', kong: 'typeKong', chow: 'typeChow' };
 
 let concealedTiles = [];
 let melds = [];
@@ -176,7 +298,7 @@ function renderScoreboard() {
   const el = document.getElementById('scoreboardGrid');
   el.innerHTML = Object.entries(players).map(([wind, p]) => `
     <div style="background: #1a2744; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #0f3460;">
-      <div style="font-size:12px; color:#aaa; text-transform:uppercase; margin-bottom: 4px;">${wind}</div>
+      <div style="font-size:12px; color:#aaa; margin-bottom: 4px;">${t(wind)}</div>
       <div style="font-weight:bold; margin-bottom: 4px;">${p.name}</div>
       <div style="color:${p.score >= 0 ? '#2ecc71' : '#e74c3c'}; font-size:24px; font-weight: bold;">${p.score}</div>
     </div>
@@ -195,11 +317,10 @@ function tileLabel(suit, value) {
 }
 
 const CONCEALED_TYPES = ['single', 'pair', 'pong', 'kong', 'chow'];
-const CONCEALED_TYPE_LABELS = { single: 'Single', pair: 'Pair', pong: 'Pong', kong: 'Kong', chow: 'Chow' };
 
 function renderConcealedTypeTabs() {
   const el = document.getElementById('concealedTypeTabs');
-  el.innerHTML = CONCEALED_TYPES.map(t => `<div class="suit-tab ${t === selectedConcealedType ? 'active' : ''}" data-type="${t}">${CONCEALED_TYPE_LABELS[t]}</div>`).join('');
+  el.innerHTML = CONCEALED_TYPES.map(tType => `<div class="suit-tab ${tType === selectedConcealedType ? 'active' : ''}" data-type="${tType}">${t(typeI18nMap[tType])}</div>`).join('');
   el.querySelectorAll('.suit-tab').forEach(tab => {
     tab.addEventListener('click', () => { 
       selectedConcealedType = tab.dataset.type; 
@@ -216,7 +337,7 @@ function renderConcealedSuitTabs() {
   if (selectedConcealedType === 'chow' && !VALUE_SUITS.includes(selectedConcealedSuit)) {
     selectedConcealedSuit = 'bamboo';
   }
-  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedConcealedSuit ? 'active' : ''}" data-suit="${s}">${SUIT_LABELS[s]}</div>`).join('');
+  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedConcealedSuit ? 'active' : ''}" data-suit="${s}">${t(suitI18nMap[s])}</div>`).join('');
   el.querySelectorAll('.suit-tab').forEach(tab => {
     tab.addEventListener('click', () => { 
       selectedConcealedSuit = tab.dataset.suit; 
@@ -298,7 +419,7 @@ function removeConcealedTile(idx) {
 function renderConcealedList() {
   const el = document.getElementById('concealedList');
   if (concealedTiles.length === 0) {
-    el.innerHTML = '<span class="empty-tiles">Click a tile above to add to your hand</span>';
+    el.innerHTML = `<span class="empty-tiles">${t('emptyHand')}</span>`;
     return;
   }
   el.innerHTML = concealedTiles.map((g, i) => {
@@ -306,7 +427,7 @@ function renderConcealedList() {
     return `
       <div class="meld-item">
         <div class="meld-item-header">
-          <span class="tag" style="text-transform: capitalize;">${g.type}</span>
+          <span class="tag" style="text-transform: capitalize;">${t(typeI18nMap[g.type])}</span>
           <button onclick="removeConcealedTile(${i})">✕</button>
         </div>
         <div class="meld-item-tiles">${tilesHtml}</div>
@@ -317,7 +438,7 @@ function renderConcealedList() {
 function renderMeldList() {
   const el = document.getElementById('meldList');
   if (melds.length === 0) {
-    el.innerHTML = '<span class="empty-tiles">No melds added yet</span>';
+    el.innerHTML = `<span class="empty-tiles">${t('emptyMelds')}</span>`;
     return;
   }
   el.innerHTML = melds.map((m, i) => {
@@ -325,7 +446,7 @@ function renderMeldList() {
     return `
       <div class="meld-item">
         <div class="meld-item-header">
-          <span class="tag" style="text-transform: capitalize;">${m.meld_type} ${m.concealed ? '(Conc)' : ''}</span>
+          <span class="tag" style="text-transform: capitalize;">${t(typeI18nMap[m.meld_type])} ${m.concealed ? t('concTag') : ''}</span>
           <button onclick="removeMeld(${i})">✕</button>
         </div>
         <div class="meld-item-tiles">${tilesHtml}</div>
@@ -341,11 +462,10 @@ function removeMeld(idx) {
 }
 
 const MELD_TYPES = ['pong', 'kong', 'chow'];
-const MELD_TYPE_LABELS = { pong: 'Pong', kong: 'Kong', chow: 'Chow' };
 
 function renderMeldTypeTabs() {
   const el = document.getElementById('meldTypeTabs');
-  el.innerHTML = MELD_TYPES.map(t => `<div class="suit-tab ${t === selectedMeldType ? 'active' : ''}" data-type="${t}">${MELD_TYPE_LABELS[t]}</div>`).join('');
+  el.innerHTML = MELD_TYPES.map(tType => `<div class="suit-tab ${tType === selectedMeldType ? 'active' : ''}" data-type="${tType}">${t(typeI18nMap[tType])}</div>`).join('');
   el.querySelectorAll('.suit-tab').forEach(tab => {
     tab.addEventListener('click', () => { 
       selectedMeldType = tab.dataset.type; 
@@ -362,7 +482,7 @@ function renderMeldSuitTabs() {
   if (selectedMeldType === 'chow' && !VALUE_SUITS.includes(selectedMeldSuit)) {
     selectedMeldSuit = 'bamboo';
   }
-  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedMeldSuit ? 'active' : ''}" data-suit="${s}">${SUIT_LABELS[s]}</div>`).join('');
+  el.innerHTML = suits.map(s => `<div class="suit-tab ${s === selectedMeldSuit ? 'active' : ''}" data-suit="${s}">${t(suitI18nMap[s])}</div>`).join('');
   el.querySelectorAll('.suit-tab').forEach(tab => {
     tab.addEventListener('click', () => { 
       selectedMeldSuit = tab.dataset.suit; 
@@ -468,14 +588,14 @@ document.getElementById('calculateBtn').addEventListener('click', async () => {
   const discarderWind = document.getElementById('discarderWind').value;
 
   if (!isSelfDrawn && seatWind === discarderWind) {
-    alert("Winner and Discarder cannot be the same wind!");
+    alert(t('errorSameWind'));
     return;
   }
 
   calculating = true;
   const btn = document.getElementById('calculateBtn');
   btn.disabled = true;
-  btn.textContent = 'Calculating...';
+  btn.textContent = t('calculating');
 
   try {
     const payload = {
@@ -510,7 +630,7 @@ document.getElementById('calculateBtn').addEventListener('click', async () => {
   } finally {
     calculating = false;
     btn.disabled = false;
-    btn.textContent = 'Calculate Score';
+    btn.textContent = t('calculateBtn');
   }
 });
 
@@ -524,30 +644,38 @@ async function applyScore() {
   lastCalculation = null; // Prevent applying the same score multiple times
 }
 
+let lastResultData = null;
 function displayResult(data) {
+  lastResultData = data;
   const el = document.getElementById('result');
   if (data.error) {
-    el.innerHTML = `<div class="result error">${data.error}</div>`;
+    let errStr = data.error;
+    if (errStr.includes("Not a winning hand")) errStr = t('errNotWinning');
+    else if (errStr.includes("Too few tiles")) errStr = t('errTooFew');
+    el.innerHTML = `<div class="result error">${errStr}</div>`;
     return;
   }
   const isLimit = data.is_limit;
   el.innerHTML = `
   <div class="result">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-      <span class="fan-header">Total: ${data.total_fan} Fan</span>
-      ${isLimit ? '<span class="limit-badge">LIMIT HAND</span>' : ''}
+      <span class="fan-header">${t('total')}: ${data.total_fan} ${t('fan')}</span>
+      ${isLimit ? `<span class="limit-badge">${t('limitHand')}</span>` : ''}
     </div>
-    <div class="score">${data.total_payable} points</div>
+    <div class="score">${data.total_payable} ${t('points')}</div>
     <div style="font-size:14px;color:#aaa;margin:4px 0 12px">
-      ${data.is_limit ? 'Limit hand (10000 base)' : 'Base: 1 point × 2^fan = ' + Math.pow(2, data.total_fan) + ' base'}
-      ${data.dealer_multiplier > 1 ? ' × 2 (dealer) = ' + data.total_payable : ''}
+      ${data.is_limit ? t('limitBase') : t('base', Math.pow(2, data.total_fan))}
+      ${data.dealer_multiplier > 1 ? t('dealerMult', data.total_payable) : ''}
     </div>
     ${data.fans && data.fans.length > 0 ? `
     <div class="fan-list">
-      <div style="font-size:14px;color:#aaa;margin-bottom:6px">Fan Patterns:</div>
-      ${data.fans.map(f => `<div class="fan-item"><span>${f.name}</span><span>${f.fan} fan</span></div>`).join('')}
-    </div>` : '<div style="color:#aaa;font-size:14px">Common Hand (0 fan) - base 1 point</div>'}
-    <button id="applyScoreBtn" style="margin-top: 16px; width: 100%; padding: 12px; background: #2ecc71; font-size: 16px; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Apply to Scoreboard</button>
+      <div style="font-size:14px;color:#aaa;margin-bottom:6px">${t('fanPatterns')}</div>
+      ${data.fans.map(f => {
+        const fName = backendPatternMap[f.name] ? t(backendPatternMap[f.name]) : f.name;
+        return `<div class="fan-item"><span>${fName}</span><span>${f.fan} ${t('fan')}</span></div>`;
+      }).join('')}
+    </div>` : `<div style="color:#aaa;font-size:14px">${t('commonHand')}</div>`}
+    <button id="applyScoreBtn" style="margin-top: 16px; width: 100%; padding: 12px; background: #2ecc71; font-size: 16px; color: #fff; border: none; border-radius: 8px; cursor: pointer;">${t('applyToScoreboard')}</button>
   </div>`;
   
   const applyBtn = document.getElementById('applyScoreBtn');
@@ -555,7 +683,7 @@ function displayResult(data) {
     applyBtn.addEventListener('click', () => {
       applyScore();
       applyBtn.disabled = true;
-      applyBtn.textContent = 'Score Applied!';
+      applyBtn.textContent = t('scoreApplied');
       applyBtn.style.background = '#0f3460';
     });
   }
@@ -569,6 +697,36 @@ renderMeldTypeTabs();
 renderMeldSuitTabs();
 renderMeldValueBtns();
 renderMeldList();
+
+function updateDropdownOptions() {
+  const seatWindSelect = document.getElementById('seatWind');
+  const discarderWindSelect = document.getElementById('discarderWind');
+  const prevalentWindSelect = document.getElementById('prevalentWind');
+  
+  const seatVal = seatWindSelect.value || 'east';
+  const discarderVal = discarderWindSelect.value || 'east';
+  const prevalentVal = prevalentWindSelect.value || 'east';
+  
+  seatWindSelect.innerHTML = '';
+  discarderWindSelect.innerHTML = '';
+  prevalentWindSelect.innerHTML = '';
+  
+  ['east', 'south', 'west', 'north'].forEach(w => {
+    const wName = t(w);
+    prevalentWindSelect.innerHTML += `<option value="${w}">${wName}</option>`;
+    
+    const p = players[w];
+    if (p) {
+      const text = `${p.name} (${wName})`;
+      seatWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
+      discarderWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
+    }
+  });
+  
+  seatWindSelect.value = seatVal;
+  discarderWindSelect.value = discarderVal;
+  prevalentWindSelect.value = prevalentVal;
+}
 
 async function fetchState() {
   try {
@@ -584,32 +742,12 @@ async function fetchState() {
       if (data.prevalent_wind) {
         document.getElementById('prevalentWind').value = data.prevalent_wind;
       }
-
-      // Dynamically populate Winner and Discarder dropdowns with Player Names
-      const seatWindSelect = document.getElementById('seatWind');
-      const discarderWindSelect = document.getElementById('discarderWind');
-      const currentSeat = seatWindSelect.value;
-      const currentDiscarder = discarderWindSelect.value;
-      
-      seatWindSelect.innerHTML = '';
-      discarderWindSelect.innerHTML = '';
-      
-      ['east', 'south', 'west', 'north'].forEach(w => {
-        const p = players[w];
-        if (p) {
-          const text = `${p.name} (${w.charAt(0).toUpperCase() + w.slice(1)})`;
-          seatWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
-          discarderWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
-        }
-      });
-      
-      if (currentSeat) seatWindSelect.value = currentSeat;
-      if (currentDiscarder) discarderWindSelect.value = currentDiscarder;
-
+      updateDropdownOptions();
       renderScoreboard();
     }
   } catch (e) {
     console.error('Could not fetch state', e);
+    updateDropdownOptions();
     renderScoreboard(); // Fallback to local hardcoded objects
   }
 }
@@ -660,6 +798,30 @@ document.getElementById('rotateWindsBtn').addEventListener('click', async () => 
 
 // Initialize everything from the backend!
 fetchState();
+
+document.getElementById('langToggleBtn').addEventListener('click', () => {
+  currentLang = currentLang === 'en' ? 'zh' : 'en';
+  document.getElementById('langToggleBtn').textContent = t('langToggle');
+  
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  
+  updateDropdownOptions();
+  renderScoreboard();
+  renderConcealedTypeTabs();
+  renderConcealedSuitTabs();
+  renderConcealedList();
+  renderMeldTypeTabs();
+  renderMeldSuitTabs();
+  renderMeldList();
+  
+  if (calculating) document.getElementById('calculateBtn').textContent = t('calculating');
+  if (lastResultData) displayResult(lastResultData);
+});
+
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
 </script>
 </body>
 </html>

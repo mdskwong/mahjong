@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections import Counter
-from typing import Dict, List, Set, Tuple
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Set, Tuple
 
 from .models import FanResult, Hand, Meld, MeldType, Suit, Tile, Wind, Player, GameState
 
@@ -232,77 +233,123 @@ def _value_wind_pong_count(melds: List[Meld], seat_wind: Wind, prevalent_wind: W
             count += 1
     return count
 
+@dataclass
+class PatternDefinition:
+    name: str
+    fan: int
+    condition: Callable[[Hand, List[Meld], List[Tile]], bool]
+
+PATTERN_REGISTRY: List[PatternDefinition] = [
+    PatternDefinition(
+        name="Ping Hu (Peace Hand)",
+        fan=1,
+        condition=lambda h, m, t: _is_ping_hu(m, h.seat_wind, h.prevalent_wind)
+    ),
+    PatternDefinition(
+        name="Self-Pick",
+        fan=1,
+        condition=lambda h, m, t: h.is_self_drawn
+    ),
+    PatternDefinition(
+        name="Fully Concealed Hand",
+        fan=1,
+        condition=lambda h, m, t: all(x.concealed for x in m if x.meld_type != MeldType.PAIR) and not h.is_self_drawn
+    ),
+    PatternDefinition(
+        name="Dragon Pong",
+        fan=1,
+        condition=lambda h, m, t: _dragon_pong_count(m) >= 1
+    ),
+    PatternDefinition(
+        name="Value Wind Pong",
+        fan=1,
+        condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) >= 1
+    ),
+    PatternDefinition(
+        name="Mixed Triple Chow",
+        fan=2,
+        condition=lambda h, m, t: _is_mixed_triple_chow(m)
+    ),
+    PatternDefinition(
+        name="Mixed One Suit (Half Flush)",
+        fan=2,
+        condition=lambda h, m, t: _is_mixed_one_suit(t)
+    ),
+    PatternDefinition(
+        name="All Pongs",
+        fan=2,
+        condition=lambda h, m, t: _all_pongs(m)
+    ),
+    PatternDefinition(
+        name="Double Dragon Pong",
+        fan=2,
+        condition=lambda h, m, t: _dragon_pong_count(m) >= 2
+    ),
+    PatternDefinition(
+        name="Double Value Wind Pong",
+        fan=2,
+        condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) >= 2
+    ),
+    PatternDefinition(
+        name="Outside Hand",
+        fan=2,
+        condition=lambda h, m, t: _is_outside_hand(m, t)
+    ),
+    PatternDefinition(
+        name="Pure Triple Chow",
+        fan=3,
+        condition=lambda h, m, t: _is_pure_triple_chow(m)
+    ),
+    PatternDefinition(
+        name="All Simples",
+        fan=3,
+        condition=lambda h, m, t: _is_all_simples(t)
+    ),
+    PatternDefinition(
+        name="Three Concealed Pongs",
+        fan=3,
+        condition=lambda h, m, t: sum(1 for x in m if x.meld_type in (MeldType.PONG, MeldType.KONG) and x.concealed) >= 3
+    ),
+    PatternDefinition(
+        name="Little Three Dragons",
+        fan=5,
+        condition=lambda h, m, t: _is_small_three_dragons(m)
+    ),
+    PatternDefinition(
+        name="Three Kongs",
+        fan=5,
+        condition=lambda h, m, t: _count_meld_type(m, MeldType.KONG) >= 3
+    ),
+    PatternDefinition(
+        name="All Terminals and Honors",
+        fan=5,
+        condition=lambda h, m, t: _is_all_terminals_honors(t)
+    ),
+    PatternDefinition(
+        name="Big Three Dragons",
+        fan=7,
+        condition=lambda h, m, t: _is_big_three_dragons(m)
+    ),
+    PatternDefinition(
+        name="Four Small Winds",
+        fan=7,
+        condition=lambda h, m, t: _is_small_four_winds(m)
+    ),
+    PatternDefinition(
+        name="Pure One Suit (Full Flush)",
+        fan=7,
+        condition=lambda h, m, t: _is_pure_one_suit(t) and not _has_honors(t)
+    ),
+]
+
 
 def detect_fans(hand: Hand, melds: List[Meld]) -> List[FanResult]:
     fans: List[FanResult] = []
-    tiles = hand.concealed_tiles
-    all_tiles = tiles + [t for m in melds for t in m.tiles]
+    all_tiles = hand.concealed_tiles + [t for m in melds for t in m.tiles]
 
-    is_concealed_hand = all(m.concealed for m in melds if m.meld_type != MeldType.PAIR) and not hand.is_self_drawn
-
-    if _is_ping_hu(melds, hand.seat_wind, hand.prevalent_wind):
-        fans.append(FanResult(name="Ping Hu (Peace Hand)", fan=1))
-
-    if hand.is_self_drawn:
-        fans.append(FanResult(name="Self-Pick", fan=1))
-
-    if is_concealed_hand:
-        fans.append(FanResult(name="Fully Concealed Hand", fan=1))
-
-    dragon_cnt = _dragon_pong_count(melds)
-    if dragon_cnt >= 1:
-        fans.append(FanResult(name="Dragon Pong", fan=1))
-
-    wind_cnt = _value_wind_pong_count(melds, hand.seat_wind, hand.prevalent_wind)
-    if wind_cnt >= 1:
-        fans.append(FanResult(name="Value Wind Pong", fan=1))
-
-    if _is_mixed_triple_chow(melds):
-        fans.append(FanResult(name="Mixed Triple Chow", fan=2))
-
-    if _is_mixed_one_suit(all_tiles):
-        fans.append(FanResult(name="Mixed One Suit (Half Flush)", fan=2))
-
-    if _all_pongs(melds):
-        fans.append(FanResult(name="All Pongs", fan=2))
-
-    if dragon_cnt >= 2:
-        fans.append(FanResult(name="Double Dragon Pong", fan=2))
-
-    if wind_cnt >= 2:
-        fans.append(FanResult(name="Double Value Wind Pong", fan=2))
-
-    if _is_outside_hand(melds, all_tiles):
-        fans.append(FanResult(name="Outside Hand", fan=2))
-
-    if _is_pure_triple_chow(melds):
-        fans.append(FanResult(name="Pure Triple Chow", fan=3))
-
-    if _is_all_simples(all_tiles):
-        fans.append(FanResult(name="All Simples", fan=3))
-
-    three_concealed = sum(1 for m in melds if m.meld_type in (MeldType.PONG, MeldType.KONG) and m.concealed)
-    if three_concealed >= 3:
-        fans.append(FanResult(name="Three Concealed Pongs", fan=3))
-
-    if _is_small_three_dragons(melds):
-        fans.append(FanResult(name="Little Three Dragons", fan=5))
-
-    kong_count = _count_meld_type(melds, MeldType.KONG)
-    if kong_count >= 3:
-        fans.append(FanResult(name="Three Kongs", fan=5))
-
-    if _is_all_terminals_honors(all_tiles):
-        fans.append(FanResult(name="All Terminals and Honors", fan=5))
-
-    if _is_big_three_dragons(melds):
-        fans.append(FanResult(name="Big Three Dragons", fan=7))
-
-    if _is_small_four_winds(melds):
-        fans.append(FanResult(name="Four Small Winds", fan=7))
-
-    if _is_pure_one_suit(all_tiles) and not _has_honors(all_tiles):
-        fans.append(FanResult(name="Pure One Suit (Full Flush)", fan=7))
+    for pattern in PATTERN_REGISTRY:
+        if pattern.condition(hand, melds, all_tiles):
+            fans.append(FanResult(name=pattern.name, fan=pattern.fan))
 
     return fans
 

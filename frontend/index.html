@@ -175,16 +175,6 @@ const translations = {
     dealerMult: " × 2 (dealer) = {0}",
     fanPatterns: "Fan Patterns:",
     commonHand: "Common Hand (0 fan) - base 1 point",
-    pattern_Ping_Hu: "Ping Hu (Peace Hand)", pattern_Self_Pick: "Self-Pick",
-    pattern_Fully_Concealed: "Fully Concealed Hand", pattern_Dragon_Pong: "Dragon Pong",
-    pattern_Value_Wind: "Value Wind Pong", pattern_Mixed_Triple: "Mixed Triple Chow",
-    pattern_Half_Flush: "Mixed One Suit (Half Flush)", pattern_All_Pongs: "All Pongs",
-    pattern_Double_Dragon: "Double Dragon Pong", pattern_Double_Wind: "Double Value Wind Pong",
-    pattern_Outside: "Outside Hand", pattern_Pure_Triple: "Pure Triple Chow",
-    pattern_All_Simples: "All Simples", pattern_Three_Concealed: "Three Concealed Pongs",
-    pattern_Little_Three: "Little Three Dragons", pattern_Three_Kongs: "Three Kongs",
-    pattern_All_Terminals: "All Terminals and Honors", pattern_Big_Three: "Big Three Dragons",
-    pattern_Four_Small: "Four Small Winds", pattern_Full_Flush: "Pure One Suit (Full Flush)",
     errNotWinning: "Not a winning hand - cannot form 4 melds + 1 pair",
     errTooFew: "Too few tiles in hand"
   },
@@ -217,16 +207,6 @@ const translations = {
     dealerMult: " × 2 (莊家) = {0}",
     fanPatterns: "番型:",
     commonHand: "雞糊 (0番) - 底 1 分",
-    pattern_Ping_Hu: "平糊", pattern_Self_Pick: "自摸",
-    pattern_Fully_Concealed: "門前清", pattern_Dragon_Pong: "番牌 (箭牌)",
-    pattern_Value_Wind: "番牌 (風牌)", pattern_Mixed_Triple: "三色同順",
-    pattern_Half_Flush: "混一色", pattern_All_Pongs: "對對糊",
-    pattern_Double_Dragon: "雙箭牌", pattern_Double_Wind: "雙風牌",
-    pattern_Outside: "混全帶幺九", pattern_Pure_Triple: "一色三同順",
-    pattern_All_Simples: "斷幺九", pattern_Three_Concealed: "三暗刻",
-    pattern_Little_Three: "小三元", pattern_Three_Kongs: "三槓",
-    pattern_All_Terminals: "混老頭", pattern_Big_Three: "大三元",
-    pattern_Four_Small: "小四喜", pattern_Full_Flush: "清一色",
     errNotWinning: "這不是食糊牌型 - 無法組成 4 搭 1 眼",
     errTooFew: "手牌數量不足"
   }
@@ -237,29 +217,6 @@ function t(key, ...args) {
   args.forEach((arg, i) => str = str.replace(`{${i}}`, arg));
   return str;
 }
-
-const backendPatternMap = {
-  "Ping Hu (Peace Hand)": "pattern_Ping_Hu",
-  "Self-Pick": "pattern_Self_Pick",
-  "Fully Concealed Hand": "pattern_Fully_Concealed",
-  "Dragon Pong": "pattern_Dragon_Pong",
-  "Value Wind Pong": "pattern_Value_Wind",
-  "Mixed Triple Chow": "pattern_Mixed_Triple",
-  "Mixed One Suit (Half Flush)": "pattern_Half_Flush",
-  "All Pongs": "pattern_All_Pongs",
-  "Double Dragon Pong": "pattern_Double_Dragon",
-  "Double Value Wind Pong": "pattern_Double_Wind",
-  "Outside Hand": "pattern_Outside",
-  "Pure Triple Chow": "pattern_Pure_Triple",
-  "All Simples": "pattern_All_Simples",
-  "Three Concealed Pongs": "pattern_Three_Concealed",
-  "Little Three Dragons": "pattern_Little_Three",
-  "Three Kongs": "pattern_Three_Kongs",
-  "All Terminals and Honors": "pattern_All_Terminals",
-  "Big Three Dragons": "pattern_Big_Three",
-  "Four Small Winds": "pattern_Four_Small",
-  "Pure One Suit (Full Flush)": "pattern_Full_Flush"
-};
 
 const suitI18nMap = { bamboo: 'suitBamboo', characters: 'suitCharacters', dots: 'suitDots', wind: 'suitWind', dragon: 'suitDragon' };
 const typeI18nMap = { single: 'typeSingle', pair: 'typePair', pong: 'typePong', kong: 'typeKong', chow: 'typeChow' };
@@ -671,7 +628,7 @@ function displayResult(data) {
     <div class="fan-list">
       <div style="font-size:14px;color:#aaa;margin-bottom:6px">${t('fanPatterns')}</div>
       ${data.fans.map(f => {
-        const fName = backendPatternMap[f.name] ? t(backendPatternMap[f.name]) : f.name;
+        const fName = currentLang === 'zh' && f.name_zh ? f.name_zh : f.name;
         return `<div class="fan-item"><span>${fName}</span><span>${f.fan} ${t('fan')}</span></div>`;
       }).join('')}
     </div>` : `<div style="color:#aaa;font-size:14px">${t('commonHand')}</div>`}

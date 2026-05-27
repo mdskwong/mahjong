@@ -125,9 +125,10 @@ class Hand:
 class FanResult:
     name: str
     fan: int
+    name_zh: str = ""
 
     def to_dict(self):
-        return {"name": self.name, "fan": self.fan}
+        return {"name": self.name, "name_zh": self.name_zh, "fan": self.fan}
 
 
 @dataclass

@@ -236,107 +236,128 @@ def _value_wind_pong_count(melds: List[Meld], seat_wind: Wind, prevalent_wind: W
 @dataclass
 class PatternDefinition:
     name: str
+    name_zh: str
     fan: int
     condition: Callable[[Hand, List[Meld], List[Tile]], bool]
 
 PATTERN_REGISTRY: List[PatternDefinition] = [
     PatternDefinition(
         name="Ping Hu (Peace Hand)",
+        name_zh="平糊",
         fan=1,
         condition=lambda h, m, t: _is_ping_hu(m, h.seat_wind, h.prevalent_wind)
     ),
     PatternDefinition(
         name="Self-Pick",
+        name_zh="自摸",
         fan=1,
         condition=lambda h, m, t: h.is_self_drawn
     ),
     PatternDefinition(
         name="Fully Concealed Hand",
+        name_zh="門前清",
         fan=1,
         condition=lambda h, m, t: all(x.concealed for x in m if x.meld_type != MeldType.PAIR) and not h.is_self_drawn
     ),
     PatternDefinition(
         name="Dragon Pong",
+        name_zh="番牌 (箭牌)",
         fan=1,
         condition=lambda h, m, t: _dragon_pong_count(m) >= 1
     ),
     PatternDefinition(
         name="Value Wind Pong",
+        name_zh="番牌 (風牌)",
         fan=1,
         condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) >= 1
     ),
     PatternDefinition(
         name="Mixed Triple Chow",
+        name_zh="三色同順",
         fan=2,
         condition=lambda h, m, t: _is_mixed_triple_chow(m)
     ),
     PatternDefinition(
         name="Mixed One Suit (Half Flush)",
+        name_zh="混一色",
         fan=2,
         condition=lambda h, m, t: _is_mixed_one_suit(t)
     ),
     PatternDefinition(
         name="All Pongs",
+        name_zh="對對糊",
         fan=2,
         condition=lambda h, m, t: _all_pongs(m)
     ),
     PatternDefinition(
         name="Double Dragon Pong",
+        name_zh="雙箭牌",
         fan=2,
         condition=lambda h, m, t: _dragon_pong_count(m) >= 2
     ),
     PatternDefinition(
         name="Double Value Wind Pong",
+        name_zh="雙風牌",
         fan=2,
         condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) >= 2
     ),
     PatternDefinition(
         name="Outside Hand",
+        name_zh="混全帶幺九",
         fan=2,
         condition=lambda h, m, t: _is_outside_hand(m, t)
     ),
     PatternDefinition(
         name="Pure Triple Chow",
+        name_zh="一色三同順",
         fan=3,
         condition=lambda h, m, t: _is_pure_triple_chow(m)
     ),
     PatternDefinition(
         name="All Simples",
+        name_zh="斷幺九",
         fan=3,
         condition=lambda h, m, t: _is_all_simples(t)
     ),
     PatternDefinition(
         name="Three Concealed Pongs",
+        name_zh="三暗刻",
         fan=3,
         condition=lambda h, m, t: sum(1 for x in m if x.meld_type in (MeldType.PONG, MeldType.KONG) and x.concealed) >= 3
     ),
     PatternDefinition(
         name="Little Three Dragons",
+        name_zh="小三元",
         fan=5,
         condition=lambda h, m, t: _is_small_three_dragons(m)
     ),
     PatternDefinition(
         name="Three Kongs",
+        name_zh="三槓",
         fan=5,
         condition=lambda h, m, t: _count_meld_type(m, MeldType.KONG) >= 3
     ),
     PatternDefinition(
         name="All Terminals and Honors",
+        name_zh="混老頭",
         fan=5,
         condition=lambda h, m, t: _is_all_terminals_honors(t)
     ),
     PatternDefinition(
         name="Big Three Dragons",
+        name_zh="大三元",
         fan=7,
         condition=lambda h, m, t: _is_big_three_dragons(m)
     ),
     PatternDefinition(
         name="Four Small Winds",
+        name_zh="小四喜",
         fan=7,
         condition=lambda h, m, t: _is_small_four_winds(m)
     ),
     PatternDefinition(
         name="Pure One Suit (Full Flush)",
+        name_zh="清一色",
         fan=7,
         condition=lambda h, m, t: _is_pure_one_suit(t) and not _has_honors(t)
     ),
@@ -349,7 +370,7 @@ def detect_fans(hand: Hand, melds: List[Meld]) -> List[FanResult]:
 
     for pattern in PATTERN_REGISTRY:
         if pattern.condition(hand, melds, all_tiles):
-            fans.append(FanResult(name=pattern.name, fan=pattern.fan))
+            fans.append(FanResult(name=pattern.name, name_zh=pattern.name_zh, fan=pattern.fan))
 
     return fans
 

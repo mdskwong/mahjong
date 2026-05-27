@@ -100,6 +100,8 @@ def _decompose(tiles: List[Tile]) -> List[List[Meld]]:
 
 
 def _is_ping_hu(melds: List[Meld], seat_wind: Wind, prevalent_wind: Wind) -> bool:
+    if len(melds) != 5:
+        return False
     pair = None
     chow_count = 0
     for m in melds:
@@ -113,11 +115,9 @@ def _is_ping_hu(melds: List[Meld], seat_wind: Wind, prevalent_wind: Wind) -> boo
 
 
 def _all_pongs(melds: List[Meld]) -> bool:
-    return all(m.meld_type in (MeldType.PONG, MeldType.KONG) for m in melds)
-
-
-def _count_meld_type(melds: List[Meld], mt: MeldType) -> int:
-    return sum(1 for m in melds if m.meld_type == mt)
+    if len(melds) != 5:
+        return False
+    return all(m.meld_type in (MeldType.PONG, MeldType.KONG, MeldType.PAIR) for m in melds) and sum(1 for m in melds if m.meld_type == MeldType.PAIR) == 1
 
 
 def _is_pure_one_suit(tiles: List[Tile]) -> bool:
@@ -159,58 +159,41 @@ def _is_small_four_winds(melds: List[Meld]) -> bool:
     return wind_pongs == 3 and wind_pair
 
 
-def _is_mixed_triple_chow(melds: List[Meld]) -> bool:
-    chows_by_num: Dict[int, Set[Suit]] = {}
-    for m in melds:
-        if m.meld_type != MeldType.CHOW:
-            continue
-        tiles = sorted(m.tiles, key=lambda t: t.value)
-        if len(tiles) != 3 or not (tiles[0].value == tiles[1].value - 1 == tiles[2].value - 2):
-            continue
-        first_val = tiles[0].value
-        if first_val not in chows_by_num:
-            chows_by_num[first_val] = set()
-        chows_by_num[first_val].add(tiles[0].suit)
-    return any(len(suits) == 3 for suits in chows_by_num.values())
-
-
-def _is_pure_triple_chow(melds: List[Meld]) -> bool:
-    chow_counts: Dict[Tuple[Suit, int], int] = {}
-    for m in melds:
-        if m.meld_type != MeldType.CHOW:
-            continue
-        tiles = sorted(m.tiles, key=lambda t: t.value)
-        if len(tiles) != 3:
-            continue
-        key = (tiles[0].suit, tiles[0].value)
-        chow_counts[key] = chow_counts.get(key, 0) + 1
-    return any(cnt >= 2 for cnt in chow_counts.values())
-
-
 def _is_mixed_one_suit(tiles: List[Tile]) -> bool:
     suits = {t.suit for t in tiles if not t.is_honor()}
     return len(suits) == 1 and _has_honors(tiles)
 
 
-def _is_all_simples(tiles: List[Tile]) -> bool:
-    return all(t.is_simple() for t in tiles)
-
-
-def _is_all_terminals_honors(tiles: List[Tile]) -> bool:
-    return all(t.is_terminal() or t.is_honor() for t in tiles)
-
-
-def _is_outside_hand(melds: List[Meld], tiles: List[Tile]) -> bool:
-    if _is_all_terminals_honors(tiles):
+def _is_thirteen_orphans(tiles: List[Tile]) -> bool:
+    if len(tiles) != 14:
         return False
-    for m in melds:
-        if m.meld_type == MeldType.CHOW:
-            vals = [t.value for t in m.tiles]
-            if 1 not in vals and 9 not in vals:
-                return False
-        else:
-            if not (m.tiles[0].is_terminal() or m.tiles[0].is_honor()):
-                return False
+    required_tiles = {
+        Tile(Suit.BAMBOO, 1), Tile(Suit.BAMBOO, 9),
+        Tile(Suit.CHARACTERS, 1), Tile(Suit.CHARACTERS, 9),
+        Tile(Suit.DOTS, 1), Tile(Suit.DOTS, 9),
+        Tile(Suit.WIND, 1), Tile(Suit.WIND, 2), Tile(Suit.WIND, 3), Tile(Suit.WIND, 4),
+        Tile(Suit.DRAGON, 1), Tile(Suit.DRAGON, 2), Tile(Suit.DRAGON, 3)
+    }
+    tile_set = set(tiles)
+    return tile_set == required_tiles
+
+
+def _is_nine_gates(concealed: List[Tile], melds: List[Meld]) -> bool:
+    if melds:
+        return False
+    if len(concealed) != 14:
+        return False
+    suits = {t.suit for t in concealed}
+    if len(suits) != 1:
+        return False
+    suit = list(suits)[0]
+    if suit.value not in ("bamboo", "characters", "dots"):
+        return False
+    counts = Counter(t.value for t in concealed)
+    for v in range(1, 10):
+        required = 3 if v in (1, 9) else 1
+        if counts[v] < required:
+            return False
     return True
 
 
@@ -229,9 +212,25 @@ def _value_wind_pong_count(melds: List[Meld], seat_wind: Wind, prevalent_wind: W
         wind_val = t.value
         seat_val = {"east": 1, "south": 2, "west": 3, "north": 4}[seat_wind.value]
         prevalent_val = {"east": 1, "south": 2, "west": 3, "north": 4}[prevalent_wind.value]
-        if wind_val in (seat_val, prevalent_val):
+        if wind_val == seat_val:
+            count += 1
+        if wind_val == prevalent_val:
             count += 1
     return count
+
+
+def _is_all_honors(tiles: List[Tile]) -> bool:
+    return all(t.is_honor() for t in tiles)
+
+def _is_pure_terminals(tiles: List[Tile]) -> bool:
+    return all(t.is_terminal() and not t.is_honor() for t in tiles)
+
+def _is_eighteen_arhats(melds: List[Meld]) -> bool:
+    return sum(1 for m in melds if m.meld_type == MeldType.KONG) == 4
+
+def _is_big_four_winds(melds: List[Meld]) -> bool:
+    wind_pongs = sum(1 for m in melds if m.tiles[0].is_wind() and m.meld_type in (MeldType.PONG, MeldType.KONG))
+    return wind_pongs == 4
 
 @dataclass
 class PatternDefinition:
@@ -263,67 +262,43 @@ PATTERN_REGISTRY: List[PatternDefinition] = [
         name="Dragon Pong",
         name_zh="番牌 (箭牌)",
         fan=1,
-        condition=lambda h, m, t: _dragon_pong_count(m) >= 1
-    ),
-    PatternDefinition(
-        name="Value Wind Pong",
-        name_zh="番牌 (風牌)",
-        fan=1,
-        condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) >= 1
-    ),
-    PatternDefinition(
-        name="Mixed Triple Chow",
-        name_zh="三色同順",
-        fan=2,
-        condition=lambda h, m, t: _is_mixed_triple_chow(m)
-    ),
-    PatternDefinition(
-        name="Mixed One Suit (Half Flush)",
-        name_zh="混一色",
-        fan=2,
-        condition=lambda h, m, t: _is_mixed_one_suit(t)
-    ),
-    PatternDefinition(
-        name="All Pongs",
-        name_zh="對對糊",
-        fan=2,
-        condition=lambda h, m, t: _all_pongs(m)
+        condition=lambda h, m, t: _dragon_pong_count(m) == 1 and not _is_small_three_dragons(m)
     ),
     PatternDefinition(
         name="Double Dragon Pong",
         name_zh="雙箭牌",
         fan=2,
-        condition=lambda h, m, t: _dragon_pong_count(m) >= 2
+        condition=lambda h, m, t: _dragon_pong_count(m) == 2 and not _is_small_three_dragons(m)
+    ),
+    PatternDefinition(
+        name="Value Wind Pong",
+        name_zh="番牌 (風牌)",
+        fan=1,
+        condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) == 1
     ),
     PatternDefinition(
         name="Double Value Wind Pong",
         name_zh="雙風牌",
         fan=2,
-        condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) >= 2
+        condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) == 2
     ),
     PatternDefinition(
-        name="Outside Hand",
-        name_zh="混全帶幺九",
-        fan=2,
-        condition=lambda h, m, t: _is_outside_hand(m, t)
-    ),
-    PatternDefinition(
-        name="Pure Triple Chow",
-        name_zh="一色三同順",
+        name="Triple Value Wind Pong",
+        name_zh="三風牌",
         fan=3,
-        condition=lambda h, m, t: _is_pure_triple_chow(m)
+        condition=lambda h, m, t: _value_wind_pong_count(m, h.seat_wind, h.prevalent_wind) == 3
     ),
     PatternDefinition(
-        name="All Simples",
-        name_zh="斷幺九",
+        name="Mixed One Suit (Half Flush)",
+        name_zh="混一色",
         fan=3,
-        condition=lambda h, m, t: _is_all_simples(t)
+        condition=lambda h, m, t: _is_mixed_one_suit(t)
     ),
     PatternDefinition(
-        name="Three Concealed Pongs",
-        name_zh="三暗刻",
+        name="All Pongs",
+        name_zh="對對糊",
         fan=3,
-        condition=lambda h, m, t: sum(1 for x in m if x.meld_type in (MeldType.PONG, MeldType.KONG) and x.concealed) >= 3
+        condition=lambda h, m, t: _all_pongs(m)
     ),
     PatternDefinition(
         name="Little Three Dragons",
@@ -332,34 +307,58 @@ PATTERN_REGISTRY: List[PatternDefinition] = [
         condition=lambda h, m, t: _is_small_three_dragons(m)
     ),
     PatternDefinition(
-        name="Three Kongs",
-        name_zh="三槓",
-        fan=5,
-        condition=lambda h, m, t: _count_meld_type(m, MeldType.KONG) >= 3
-    ),
-    PatternDefinition(
-        name="All Terminals and Honors",
-        name_zh="混老頭",
-        fan=5,
-        condition=lambda h, m, t: _is_all_terminals_honors(t)
+        name="Pure One Suit (Full Flush)",
+        name_zh="清一色",
+        fan=7,
+        condition=lambda h, m, t: _is_pure_one_suit(t) and not _has_honors(t)
     ),
     PatternDefinition(
         name="Big Three Dragons",
         name_zh="大三元",
-        fan=7,
+        fan=8,
         condition=lambda h, m, t: _is_big_three_dragons(m)
     ),
     PatternDefinition(
         name="Four Small Winds",
         name_zh="小四喜",
-        fan=7,
+        fan=8,
         condition=lambda h, m, t: _is_small_four_winds(m)
     ),
     PatternDefinition(
-        name="Pure One Suit (Full Flush)",
-        name_zh="清一色",
-        fan=7,
-        condition=lambda h, m, t: _is_pure_one_suit(t) and not _has_honors(t)
+        name="Thirteen Orphans",
+        name_zh="十三幺",
+        fan=10,
+        condition=lambda h, m, t: _is_thirteen_orphans(t)
+    ),
+    PatternDefinition(
+        name="Big Four Winds",
+        name_zh="大四喜",
+        fan=10,
+        condition=lambda h, m, t: _is_big_four_winds(m)
+    ),
+    PatternDefinition(
+        name="All Honors",
+        name_zh="字一色",
+        fan=10,
+        condition=lambda h, m, t: _is_all_honors(t)
+    ),
+    PatternDefinition(
+        name="Pure Terminals",
+        name_zh="清么九",
+        fan=10,
+        condition=lambda h, m, t: _is_pure_terminals(t)
+    ),
+    PatternDefinition(
+        name="Nine Gates",
+        name_zh="九子連環",
+        fan=10,
+        condition=lambda h, m, t: _is_nine_gates(h.concealed_tiles, h.melds)
+    ),
+    PatternDefinition(
+        name="Eighteen Arhats",
+        name_zh="十八羅漢",
+        fan=10,
+        condition=lambda h, m, t: _is_eighteen_arhats(m)
     ),
 ]
 
@@ -387,7 +386,17 @@ def score_hand(hand: Hand) -> dict:
     if len(hand.concealed_tiles) < 2:
         return {"error": "Too few tiles in hand", "total_fan": 0, "fans": [], "total_payable": 0}
 
+    all_tiles = hand.all_tiles()
+    is_thirteen = _is_thirteen_orphans(all_tiles)
+    is_nine = _is_nine_gates(hand.concealed_tiles, hand.melds)
+
     decompositions = _decompose(hand.concealed_tiles)
+
+    if is_thirteen or is_nine:
+        if not decompositions:
+            decompositions = [[]]
+        else:
+            decompositions.append([])
 
     if not decompositions:
         return {"error": "Not a winning hand - cannot form 4 melds + 1 pair", "total_fan": 0, "fans": [], "total_payable": 0}

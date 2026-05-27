@@ -41,26 +41,26 @@ SCORE_HAND_PATH = "/score"
 
 PATTERNS_DATA = {
     "patterns": [
-        {"fan": 1, "name": "Ping Hu (Peace Hand)", "name_zh": "平糊", "desc": "All melds are chows, pair is not a value pair"},
+        {"fan": 1, "name": "Ping Hu (Peace Hand)", "name_zh": "平糊", "desc": "All chows, pair is not a value pair"},
         {"fan": 1, "name": "Self-Pick", "name_zh": "自摸", "desc": "Win by drawing the winning tile yourself"},
         {"fan": 1, "name": "Fully Concealed Hand", "name_zh": "門前清", "desc": "No melds revealed, won on discard"},
         {"fan": 1, "name": "Dragon Pong", "name_zh": "番牌 (箭牌)", "desc": "Pong/kong of any dragon tile"},
         {"fan": 1, "name": "Value Wind Pong", "name_zh": "番牌 (風牌)", "desc": "Pong/kong of seat wind or prevalent wind"},
-        {"fan": 2, "name": "Mixed Triple Chow", "name_zh": "三色同順", "desc": "Same sequence in all 3 suits"},
-        {"fan": 2, "name": "Mixed One Suit (Half Flush)", "name_zh": "混一色", "desc": "All tiles in one suit + honors"},
-        {"fan": 2, "name": "All Pongs", "name_zh": "對對糊", "desc": "All melds are pongs/kongs"},
         {"fan": 2, "name": "Double Dragon Pong", "name_zh": "雙箭牌", "desc": "Two pongs of dragons"},
         {"fan": 2, "name": "Double Value Wind Pong", "name_zh": "雙風牌", "desc": "Both seat and prevalent wind pongs"},
-        {"fan": 2, "name": "Outside Hand", "name_zh": "混全帶幺九", "desc": "Every meld has a terminal or honor"},
-        {"fan": 3, "name": "Pure Triple Chow", "name_zh": "一色三同順", "desc": "Same sequence twice in same suit"},
-        {"fan": 3, "name": "All Simples", "name_zh": "斷幺九", "desc": "No terminals or honors (2-8 only)"},
-        {"fan": 3, "name": "Three Concealed Pongs", "name_zh": "三暗刻", "desc": "Three concealed pongs/kongs"},
+        {"fan": 3, "name": "Triple Value Wind Pong", "name_zh": "三風牌", "desc": "Three value wind pongs"},
+        {"fan": 3, "name": "Mixed One Suit (Half Flush)", "name_zh": "混一色", "desc": "All tiles in one suit + honors"},
+        {"fan": 3, "name": "All Pongs", "name_zh": "對對糊", "desc": "All melds are pongs/kongs"},
         {"fan": 5, "name": "Little Three Dragons", "name_zh": "小三元", "desc": "Two dragon pongs + dragon pair"},
-        {"fan": 5, "name": "Three Kongs", "name_zh": "三槓", "desc": "Three kongs in the hand"},
-        {"fan": 5, "name": "All Terminals and Honors", "name_zh": "混老頭", "desc": "Every tile is terminal or honor"},
-        {"fan": 7, "name": "Big Three Dragons", "name_zh": "大三元", "desc": "Three pongs of dragons"},
-        {"fan": 7, "name": "Four Small Winds", "name_zh": "小四喜", "desc": "Three wind pongs + wind pair"},
         {"fan": 7, "name": "Pure One Suit (Full Flush)", "name_zh": "清一色", "desc": "All tiles in one suit, no honors"},
+        {"fan": 8, "name": "Big Three Dragons", "name_zh": "大三元", "desc": "Three pongs of dragons"},
+        {"fan": 8, "name": "Four Small Winds", "name_zh": "小四喜", "desc": "Three wind pongs + wind pair"},
+        {"fan": 10, "name": "Thirteen Orphans", "name_zh": "十三幺", "desc": "One of each terminal/honor plus one duplicate"},
+        {"fan": 10, "name": "Big Four Winds", "name_zh": "大四喜", "desc": "Four pongs of winds"},
+        {"fan": 10, "name": "All Honors", "name_zh": "字一色", "desc": "All tiles are winds or dragons"},
+        {"fan": 10, "name": "Pure Terminals", "name_zh": "清么九", "desc": "All tiles are 1 or 9 of suits"},
+        {"fan": 10, "name": "Nine Gates", "name_zh": "九子連環", "desc": "1112345678999 in one suit fully concealed + 1 extra"},
+        {"fan": 10, "name": "Eighteen Arhats", "name_zh": "十八羅漢", "desc": "Four kongs"},
     ]
 }
 

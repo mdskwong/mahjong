@@ -374,7 +374,7 @@ def detect_fans(hand: Hand, melds: List[Meld]) -> List[FanResult]:
     return fans
 
 
-def score_hand(hand: Hand) -> dict:
+def score_hand(hand: Hand, base_point: int = 1, limit_hand_points: int = 10000) -> dict:
     counts = Counter(hand.all_tiles())
     for tile, count in counts.items():
         if count > 4:
@@ -413,12 +413,12 @@ def score_hand(hand: Hand) -> dict:
             best_score = total_fan
             best_fans = fans
 
-    base = 1
+    base = base_point
     total = base << best_score if best_score < 10 else 0
-    is_limit = best_score >= 10 or total >= 10000
+    is_limit = best_score >= 10 or total >= limit_hand_points
 
     if is_limit:
-        total = 10000
+        total = limit_hand_points
         best_score = max(best_score, 10)
 
     is_dealer = hand.seat_wind == Wind.EAST
@@ -439,11 +439,11 @@ def score_hand(hand: Hand) -> dict:
     }
 
 
-def apply_round_scores(game_state: GameState, hand: Hand) -> dict:
+def apply_round_scores(game_state: GameState, hand: Hand, base_point: int = 1, limit_hand_points: int = 10000) -> dict:
     """
     Calculates the winning hand and distributes the points among the 4 players.
     """
-    result = score_hand(hand)
+    result = score_hand(hand, base_point, limit_hand_points)
     if "error" in result:
         return result
 

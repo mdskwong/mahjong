@@ -80,6 +80,8 @@ def handle_score(body: dict) -> dict:
         melds_raw = body.get("melds", [])
         melds = [_parse_meld(m) for m in melds_raw]
         discarder = body.get("discarder_wind")
+        base_point = int(body.get("base_point", 1))
+        limit_hand_points = int(body.get("limit_hand_points", 10000))
         hand = Hand(
             concealed_tiles=concealed,
             melds=melds,
@@ -88,7 +90,7 @@ def handle_score(body: dict) -> dict:
             prevalent_wind=_parse_wind(body.get("prevalent_wind", "east")),
             discarder_wind=_parse_wind(discarder) if discarder else None
         )
-        return patterns.apply_round_scores(game_state, hand)
+        return patterns.apply_round_scores(game_state, hand, base_point, limit_hand_points)
     except Exception as e:
         return {"error": str(e), "total_fan": 0, "fans": [], "total_payable": 0}
 
@@ -184,6 +186,10 @@ class Handler(BaseHTTPRequestHandler):
             for p in game_state.players:
                 p.seat_wind = wind_transition[p.seat_wind]
             self._send_json({"message": "Winds rotated successfully"})
+        elif path == "/reset-scores":
+            for p in game_state.players:
+                p.score = 0
+            self._send_json({"message": "Scores reset successfully"})
         else:
             self._send_json({"error": "Not found"}, 404)
 

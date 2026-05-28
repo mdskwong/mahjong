@@ -26,8 +26,8 @@ h1 { text-align: center; color: #e94560; margin-bottom: 24px; font-size: 28px; }
 .tile .label { position: absolute; bottom: 1px; font-size: 9px; opacity: 0.7; }
 .form-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
 .form-row label { min-width: 90px; font-size: 14px; }
-select, input[type="checkbox"], input[type="text"] { background: #0f3460; color: #e0e0e0; border: 1px solid #0f3460; border-radius: 6px; padding: 6px 10px; outline: none; }
-input[type="text"]:focus { border-color: #e94560; }
+select, input[type="checkbox"], input[type="text"], input[type="number"] { background: #0f3460; color: #e0e0e0; border: 1px solid #0f3460; border-radius: 6px; padding: 6px 10px; outline: none; }
+input[type="text"]:focus, input[type="number"]:focus { border-color: #e94560; }
 button { background: #e94560; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: background 0.2s; }
 button:hover { background: #d63851; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -70,7 +70,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
       <span data-i18n="scoreboard">Scoreboard</span>
       <div>
         <button id="rotateWindsBtn" data-i18n="rotateWinds" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560; margin-right: 8px;">Rotate Winds</button>
-        <button id="editPlayersBtn" data-i18n="editNames" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560;">Edit Names</button>
+        <button id="editPlayersBtn" data-i18n="editNames" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560; margin-right: 8px;">Edit Names</button>
+        <button id="resetScoreboardBtn" data-i18n="resetScoreboard" style="font-size:12px; padding:4px 12px; background:#e74c3c; border: 1px solid #e74c3c; color: white;">Reset Scores</button>
       </div>
     </h2>
     <div id="editPlayersForm" style="display:none; margin-bottom: 16px; background: #1a2744; padding: 12px; border-radius: 8px;">
@@ -95,6 +96,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
       <div class="form-row"><label data-i18n="prevalentWind">Prevalent Wind</label><select id="prevalentWind"></select></div>
       <div class="form-row"><label data-i18n="selfDraw">Self-Draw</label><input type="checkbox" id="selfDraw"></div>
       <div class="form-row" id="discarderRow"><label data-i18n="discarder">Discarder</label><select id="discarderWind"></select></div>
+      <div class="form-row"><label data-i18n="basePoint">Base Point</label><input type="number" id="basePoint" value="1" style="width:100%"></div>
+      <div class="form-row"><label data-i18n="limitHandPoints">Limit Points</label><input type="number" id="limitHandPoints" value="10000" style="width:100%"></div>
     </div>
   </div>
 
@@ -152,11 +155,14 @@ const translations = {
     scoreboard: "Scoreboard",
     rotateWinds: "Rotate Winds",
     editNames: "Edit Names",
+    resetScoreboard: "Reset Scores",
+    confirmReset: "Are you sure you want to reset all scores to zero?",
     east: "East", south: "South", west: "West", north: "North",
     savePlayers: "Save Players", cancel: "Cancel",
     settings: "Settings",
     winner: "Winner", prevalentWind: "Prevalent Wind",
     selfDraw: "Self-Draw", discarder: "Discarder",
+    basePoint: "Base Point", limitHandPoints: "Limit Points",
     concealedTitle: "Concealed Tiles (select your hand)",
     clearHand: "Clear Hand",
     meldsTitle: "Melds (revealed)",
@@ -170,11 +176,11 @@ const translations = {
     typeSingle: "Single", typePair: "Pair", typePong: "Pong", typeKong: "Kong", typeChow: "Chow",
     concTag: "(Conc)",
     total: "Total", fan: "Fan", points: "points",
-    limitHand: "LIMIT HAND", limitBase: "Limit hand (10000 base)",
-    base: "Base: 1 point × 2^fan = {0} base",
+    limitHand: "LIMIT HAND", limitBase: "Limit hand ({0} base)",
+    base: "Base: {0} point × 2^fan = {1} base",
     dealerMult: " × 2 (dealer) = {0}",
     fanPatterns: "Fan Patterns:",
-    commonHand: "Common Hand (0 fan) - base 1 point",
+    commonHand: "Common Hand (0 fan) - base {0} point",
     errNotWinning: "Not a winning hand - cannot form 4 melds + 1 pair",
     errTooFew: "Too few tiles in hand"
   },
@@ -184,11 +190,14 @@ const translations = {
     scoreboard: "計分板",
     rotateWinds: "轉風位",
     editNames: "更改名稱",
+    resetScoreboard: "重置分數",
+    confirmReset: "確定要將所有分數重置為零嗎？",
     east: "東", south: "南", west: "西", north: "北",
     savePlayers: "儲存玩家", cancel: "取消",
     settings: "設定",
     winner: "食糊者", prevalentWind: "圈風",
     selfDraw: "自摸", discarder: "出銃者",
+    basePoint: "底分", limitHandPoints: "爆棚分數",
     concealedTitle: "手牌 (選擇你的牌)",
     clearHand: "清空手牌",
     meldsTitle: "鳴牌 (已下的牌)",
@@ -202,11 +211,11 @@ const translations = {
     typeSingle: "單張", typePair: "眼", typePong: "碰", typeKong: "槓", typeChow: "上",
     concTag: "(暗)",
     total: "總共", fan: "番", points: "分",
-    limitHand: "爆棚", limitBase: "爆棚 (10000 底)",
-    base: "底分: 1 分 × 2^番數 = {0} 底",
+    limitHand: "爆棚", limitBase: "爆棚 ({0} 底)",
+    base: "底分: {0} 分 × 2^番數 = {1} 底",
     dealerMult: " × 2 (莊家) = {0}",
     fanPatterns: "番型:",
-    commonHand: "雞糊 (0番) - 底 1 分",
+    commonHand: "雞糊 (0番) - 底 {0} 分",
     errNotWinning: "這不是食糊牌型 - 無法組成 4 搭 1 眼",
     errTooFew: "手牌數量不足"
   }
@@ -467,14 +476,21 @@ function renderMeldValueBtns() {
   const suit = selectedMeldSuit;
   const type = selectedMeldType;
   
+  const currentTotal = getEffectiveTileCount();
+
   const addBtn = (v, label) => {
     let disabled = false;
-    if (type === 'pong' || type === 'kong') {
-      const count = type === 'kong' ? 4 : 3;
-      if (getTileCount(suit, v) + count > 4) disabled = true;
-    } else if (type === 'chow') {
-      for (let off = 0; off < 3; off++) {
-        if (getTileCount(suit, v + off) + 1 > 4) disabled = true;
+    
+    if (currentTotal + 3 > 14) disabled = true;
+
+    if (!disabled) {
+      if (type === 'pong' || type === 'kong') {
+        const count = type === 'kong' ? 4 : 3;
+        if (getTileCount(suit, v) + count > 4) disabled = true;
+      } else if (type === 'chow') {
+        for (let off = 0; off < 3; off++) {
+          if (getTileCount(suit, v + off) + 1 > 4) disabled = true;
+        }
       }
     }
     return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled ? 'disabled' : ''}>${label}</button>`;
@@ -501,6 +517,8 @@ function renderMeldValueBtns() {
 function addMeldAction(suit, value) {
   const type = selectedMeldType;
   const concealed = document.getElementById('meldConcealedCb').checked;
+
+  if (getEffectiveTileCount() + 3 > 14) return;
 
   if (type === 'pong' || type === 'kong') {
     const count = type === 'kong' ? 4 : 3;
@@ -574,7 +592,9 @@ document.getElementById('calculateBtn').addEventListener('click', async () => {
       is_self_drawn: isSelfDrawn,
       seat_wind: seatWind,
       prevalent_wind: document.getElementById('prevalentWind').value,
-      discarder_wind: isSelfDrawn ? null : discarderWind
+      discarder_wind: isSelfDrawn ? null : discarderWind,
+      base_point: parseInt(document.getElementById('basePoint').value) || 1,
+      limit_hand_points: parseInt(document.getElementById('limitHandPoints').value) || 10000
     };
 
     const res = await fetch('/score', {
@@ -626,6 +646,7 @@ function displayResult(data) {
     return;
   }
   const isLimit = data.is_limit;
+  const limitPoints = document.getElementById('limitHandPoints').value || 10000;
   el.innerHTML = `
   <div class="result">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -634,7 +655,7 @@ function displayResult(data) {
     </div>
     <div class="score">${data.total_payable} ${t('points')}</div>
     <div style="font-size:14px;color:#aaa;margin:4px 0 12px">
-      ${data.is_limit ? t('limitBase') : t('base', Math.pow(2, data.total_fan))}
+      ${data.is_limit ? t('limitBase', limitPoints) : t('base', data.base_score, data.base_score * Math.pow(2, data.total_fan))}
       ${data.dealer_multiplier > 1 ? t('dealerMult', data.total_payable) : ''}
     </div>
     ${data.fans && data.fans.length > 0 ? `
@@ -644,7 +665,7 @@ function displayResult(data) {
         const fName = currentLang === 'zh' && f.name_zh ? f.name_zh : f.name;
         return `<div class="fan-item"><span>${fName}</span><span>${f.fan} ${t('fan')}</span></div>`;
       }).join('')}
-    </div>` : `<div style="color:#aaa;font-size:14px">${t('commonHand')}</div>`}
+    </div>` : `<div style="color:#aaa;font-size:14px">${t('commonHand', data.base_score)}</div>`}
     <button id="applyScoreBtn" style="margin-top: 16px; width: 100%; padding: 12px; background: #2ecc71; font-size: 16px; color: #fff; border: none; border-radius: 8px; cursor: pointer;">${t('applyToScoreboard')}</button>
   </div>`;
   
@@ -763,6 +784,16 @@ document.getElementById('rotateWindsBtn').addEventListener('click', async () => 
     await fetchState(); // Instantly update frontend UI
   } catch (e) {
     console.error('Failed to rotate winds', e);
+  }
+});
+
+document.getElementById('resetScoreboardBtn').addEventListener('click', async () => {
+  if (!confirm(t('confirmReset'))) return;
+  try {
+    await fetch('/reset-scores', { method: 'POST' });
+    await fetchState();
+  } catch (e) {
+    console.error('Failed to reset scores', e);
   }
 });
 

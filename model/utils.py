@@ -107,7 +107,13 @@ def get_latest_model_path(train_root_path: Path) -> Path:
     if len(train_versions) == 0:
         raise FileNotFoundError("No training folders found in the specified path.")
 
-    return train_root_path / f"train{max(train_versions)}/weights/last.pt"
+    max_version = max(train_versions)
+    folder_name = f"train{max_version}" if max_version > 1 else "train"
+    
+    best_model = train_root_path / folder_name / "weights" / "best.pt"
+    if best_model.exists():
+        return best_model
+    return train_root_path / folder_name / "weights" / "last.pt"
 
 
 def download_data(version: int) -> None:

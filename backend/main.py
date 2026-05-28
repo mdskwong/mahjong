@@ -180,7 +180,6 @@ class Handler(BaseHTTPRequestHandler):
                 sys.path.insert(0, detection_path)
 
             from predict import Predictor
-            from utils import get_latest_model_path
             from PIL import Image
             import numpy as np
 
@@ -204,35 +203,24 @@ class Handler(BaseHTTPRequestHandler):
                     temp_filename = temp_file.name
                     temp_file.write(file_item.file.read())
 
-                model_path = Path(detection_path) / "weights" / "best.pt"
-                if not model_path.exists():
-                    model_path = get_latest_model_path(Path(detection_path) / "runs/detect")
-                # Using standard parameters for the Predictor
-                predictor = Predictor(model_path=model_path, font_path="/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc")
+                predictor = Predictor()
                 
-                # Get predictions directly from the YOLO model
-                results = predictor.model(Image.open(temp_filename), conf=0.3, imgsz=1024, agnostic_nms=True)[0]
+                # Get predictions using the updated Predictor class
+                with Image.open(temp_filename) as img:
+                    labels = predictor.predict_image(img)
                 
                 detected_tiles = []
-                if results.boxes is not None and len(results.boxes) > 0:
-                    boxes = results.boxes.xywh.cpu().numpy()
-                    classes = results.boxes.cls.cpu().numpy()
-                    names = predictor.model.names
-
-                    # Sort tiles left-to-right by bounding box x-coordinate
-                    sorted_indices = np.argsort(boxes[:, 0])
-                    for idx in sorted_indices:
-                        label = names[int(classes[idx])]
-                        suit_char, val = label[0], int(label[1:])
-                        tile_obj = None
-                        
-                        if suit_char == 'm': tile_obj = {"suit": "characters", "value": val}
-                        elif suit_char == 's': tile_obj = {"suit": "bamboo", "value": val}
-                        elif suit_char == 't': tile_obj = {"suit": "dots", "value": val}
-                        elif suit_char == 'z':
-                            if 1 <= val <= 4: tile_obj = {"suit": "wind", "value": val}
-                            elif 5 <= val <= 7: tile_obj = {"suit": "dragon", "value": val - 4}
-                        if tile_obj: detected_tiles.append(tile_obj)
+                for label in labels:
+                    suit_char, val = label[0], int(label[1:])
+                    tile_obj = None
+                    
+                    if suit_char == 'm': tile_obj = {"suit": "characters", "value": val}
+                    elif suit_char == 's': tile_obj = {"suit": "bamboo", "value": val}
+                    elif suit_char == 't': tile_obj = {"suit": "dots", "value": val}
+                    elif suit_char == 'z':
+                        if 1 <= val <= 4: tile_obj = {"suit": "wind", "value": val}
+                        elif 5 <= val <= 7: tile_obj = {"suit": "dragon", "value": val - 4}
+                    if tile_obj: detected_tiles.append(tile_obj)
                 self._send_json({"tiles": detected_tiles})
             except Exception as e:
                 self._send_json({"error": f"An error occurred: {str(e)}"}, 500)

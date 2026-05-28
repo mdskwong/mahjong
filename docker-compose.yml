@@ -1,0 +1,15 @@
+services:
+  mahjong-app:
+    image: mdskwong/mahjong/mahjong-app:latest
+    restart: unless-stopped
+    ports:
+      - "80:8000"
+    environment:
+      - PORT=80
+      - HOST=0.0.0.0
+    working_dir: /app
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    platform: linux/arm64

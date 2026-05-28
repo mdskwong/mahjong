@@ -1,0 +1,15 @@
+name: mahjong
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.11 # Or your preferred Python version
+  - pip
+  - pip:
+    - fastapi>=0.104.0
+    - uvicorn[standard]>=0.24.0
+    - pydantic>=2.0.0
+    - roboflow
+    - python-dotenv
+    - supervision
+    - ultralytics

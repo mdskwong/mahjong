@@ -3,10 +3,7 @@ services:
     image: mdskwong/mahjong:9209625d8d9b816d2aa9dc590c3aba5b2b2b2215
     restart: unless-stopped
     ports:
-      - "80:8000"
-    environment:
-      - PORT=8000
-      - HOST=0.0.0.0
+      - "127.0.0.1:8000:8000"
     working_dir: /app
     deploy:
       resources:

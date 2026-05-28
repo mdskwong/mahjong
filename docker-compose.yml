@@ -1,6 +1,6 @@
 services:
   mahjong-app:
-    image: mdskwong/mahjong:2e2fde04f63a31b3a7c8f8deb2e7cb6847b83d98
+    image: mdskwong/mahjong:6e3a7561897d961d9f4560d0c836eeec4c76ef28
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"

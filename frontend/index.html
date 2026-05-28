@@ -102,7 +102,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   </div>
 
   <div class="card">
-    <h2 data-i18n="concealedTitle">Concealed Tiles (select your hand)</h2>
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      <span data-i18n="concealedTitle">Concealed Tiles (select your hand)</span>
+      <input type="file" id="imageInput" accept="image/*" capture="environment" style="display: none;">
+      <button id="uploadImageBtn" data-i18n="uploadImage" style="font-size:12px; padding:4px 12px; background:#0f3460; border: 1px solid #e94560;">📷 Auto-detect</button>
+    </h2>
     <div class="tile-picker">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
         <div class="suit-tabs" id="concealedTypeTabs" style="margin-bottom:0;"></div>
@@ -163,6 +167,7 @@ const translations = {
     winner: "Winner", prevalentWind: "Prevalent Wind",
     selfDraw: "Self-Draw", discarder: "Discarder",
     basePoint: "Base Point", limitHandPoints: "Limit Points",
+    uploadImage: "📷 Auto-detect",
     concealedTitle: "Concealed Tiles (select your hand)",
     clearHand: "Clear Hand",
     meldsTitle: "Melds (revealed)",
@@ -198,6 +203,7 @@ const translations = {
     winner: "食糊者", prevalentWind: "圈風",
     selfDraw: "自摸", discarder: "出銃者",
     basePoint: "底分", limitHandPoints: "爆棚分數",
+    uploadImage: "📷 自動識別",
     concealedTitle: "手牌 (選擇你的牌)",
     clearHand: "清空手牌",
     meldsTitle: "鳴牌 (已下的牌)",
@@ -795,6 +801,17 @@ document.getElementById('resetScoreboardBtn').addEventListener('click', async ()
   } catch (e) {
     console.error('Failed to reset scores', e);
   }
+});
+
+document.getElementById('uploadImageBtn').addEventListener('click', () => {
+  document.getElementById('imageInput').click();
+});
+
+document.getElementById('imageInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  alert("Image recognition feature is coming soon!");
+  e.target.value = ''; // Reset so the same image can be uploaded again if needed
 });
 
 // Initialize everything from the backend!

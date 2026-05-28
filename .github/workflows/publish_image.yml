@@ -35,7 +35,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: mdskwong/mahjong/mahjong-app
+          images: mdskwong/mahjong
           flavor: |
             onlatest=true
           tags: |
@@ -64,7 +64,7 @@ jobs:
 
       - name: Safely Update Compose Image Mappings
         run: |
-          sed -i 's|image: mdskwong/mahjong/mahjong-app:.*|image: mdskwong/mahjong/mahjong-app:${{ needs.build_mahjong.outputs.version }}|' docker-compose.yml
+          sed -i 's|image: mdskwong/mahjong:.*|image: mdskwong/mahjong:${{ needs.build_mahjong.outputs.version }}|' docker-compose.yml
 
       - name: Commit and push updated docker-compose.yml
         run: |

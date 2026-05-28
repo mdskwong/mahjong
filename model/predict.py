@@ -6,9 +6,7 @@ from PIL import Image
 from ultralytics import YOLO
 import supervision as sv
 import numpy as np
-
 from utils import get_latest_model_path, LABEL_MAPPING
-from locate_winning_hand import WinningHandLocator
 
 
 class Predictor:
@@ -62,17 +60,6 @@ class Predictor:
         result_image = self.draw_results_on_image(
             image, sv.Detections.from_ultralytics(results)
         )
-
-        if find_winning_hand:
-            locator = WinningHandLocator(results)
-            wh = locator.find_winning_hand()
-
-            if wh:
-                print(wh)
-                result_image = locator.plot_winning_hand(np.array(result_image))
-            else:
-                print("No winning hand found.")
-
         return result_image
 
 

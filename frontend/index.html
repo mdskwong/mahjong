@@ -807,11 +807,44 @@ document.getElementById('uploadImageBtn').addEventListener('click', () => {
   document.getElementById('imageInput').click();
 });
 
-document.getElementById('imageInput').addEventListener('change', (e) => {
+document.getElementById('imageInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  alert("Image recognition feature is coming soon!");
-  e.target.value = ''; // Reset so the same image can be uploaded again if needed
+
+  const btn = document.getElementById('uploadImageBtn');
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '...';
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  try {
+    const res = await fetch('/detect', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+
+    if (res.ok && data.tiles) {
+      concealedTiles = []; // Clear existing hand
+      data.tiles.forEach(tile => {
+        concealedTiles.push({ type: 'single', tiles: [tile] });
+      });
+      renderConcealedList();
+      renderConcealedValueBtns();
+      renderMeldValueBtns();
+    } else {
+      alert(data.error || 'Failed to detect tiles');
+    }
+  } catch (err) {
+    console.error('Detection failed:', err);
+    alert('An error occurred during detection.');
+  } finally {
+    e.target.value = ''; // Reset so the same image can be uploaded again if needed
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
 });
 
 // Initialize everything from the backend!

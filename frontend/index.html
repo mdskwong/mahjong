@@ -251,6 +251,17 @@ function getTileCount(suit, value) {
   return count;
 }
 
+function getEffectiveTileCount() {
+  let count = 0;
+  for (const g of concealedTiles) {
+    count += (g.type === 'kong') ? 3 : g.tiles.length;
+  }
+  for (const m of melds) {
+    count += (m.meld_type === 'kong') ? 3 : m.tiles.length;
+  }
+  return count;
+}
+
 function renderScoreboard() {
   const el = document.getElementById('scoreboardGrid');
   el.innerHTML = Object.entries(players).map(([wind, p]) => `
@@ -309,17 +320,19 @@ function renderConcealedValueBtns() {
   const suit = selectedConcealedSuit;
   const type = selectedConcealedType;
   
-  const currentTotal = concealedTiles.reduce((acc, g) => acc + g.tiles.length, 0);
+  const currentTotal = getEffectiveTileCount();
 
   const addBtn = (v, label) => {
     let disabled = false;
-    let countToAdd = 0;
-    if (type === 'single') countToAdd = 1;
-    else if (type === 'pair') countToAdd = 2;
-    else if (type === 'pong' || type === 'chow') countToAdd = 3;
-    else if (type === 'kong') countToAdd = 4;
+    let effectiveCountToAdd = 0;
+    let physicalCountToAdd = 0;
+    
+    if (type === 'single') { effectiveCountToAdd = 1; physicalCountToAdd = 1; }
+    else if (type === 'pair') { effectiveCountToAdd = 2; physicalCountToAdd = 2; }
+    else if (type === 'pong' || type === 'chow') { effectiveCountToAdd = 3; physicalCountToAdd = 3; }
+    else if (type === 'kong') { effectiveCountToAdd = 3; physicalCountToAdd = 4; }
 
-    if (currentTotal + countToAdd > 14) disabled = true;
+    if (currentTotal + effectiveCountToAdd > 14) disabled = true;
 
     if (!disabled) {
       if (type === 'chow') {
@@ -327,7 +340,7 @@ function renderConcealedValueBtns() {
           if (getTileCount(suit, v + off) + 1 > 4) disabled = true;
         }
       } else {
-        if (getTileCount(suit, v) + countToAdd > 4) disabled = true;
+        if (getTileCount(suit, v) + physicalCountToAdd > 4) disabled = true;
       }
     }
     return `<button class="value-btn" data-suit="${suit}" data-value="${v}" ${disabled ? 'disabled' : ''}>${label}</button>`;

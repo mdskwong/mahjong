@@ -21,9 +21,10 @@ def _decompose(tiles: List[Tile]) -> List[List[Meld]]:
     results: List[List[Meld]] = []
     counts = _tile_counts(tiles)
 
-    def backtrack(current_melds: List[Meld], remaining_count: int):
+    def backtrack(current_melds: List[Meld], remaining_count: int, has_pair: bool):
         if remaining_count == 0:
-            results.append(list(current_melds))
+            if has_pair:
+                results.append(list(current_melds))
             return
 
         keys = sorted(k for k, v in counts.items() if v > 0)
@@ -34,7 +35,7 @@ def _decompose(tiles: List[Tile]) -> List[List[Meld]]:
         suit = Suit(suit_str)
         cnt = counts[(suit_str, value)]
 
-        if cnt >= 2 and remaining_count == 2:
+        if not has_pair and cnt >= 2:
             counts[(suit_str, value)] -= 2
             if counts[(suit_str, value)] == 0:
                 del counts[(suit_str, value)]
@@ -42,61 +43,59 @@ def _decompose(tiles: List[Tile]) -> List[List[Meld]]:
                 tiles=[Tile(suit, value), Tile(suit, value)],
                 meld_type=MeldType.PAIR
             ))
-            backtrack(current_melds, 0)
+            backtrack(current_melds, remaining_count - 2, True)
             current_melds.pop()
             counts[(suit_str, value)] = cnt
 
-        elif remaining_count >= 3:
-            if cnt >= 3:
-                counts[(suit_str, value)] -= 3
-                if counts[(suit_str, value)] == 0:
-                    del counts[(suit_str, value)]
+        if cnt >= 3:
+            counts[(suit_str, value)] -= 3
+            if counts[(suit_str, value)] == 0:
+                del counts[(suit_str, value)]
+            current_melds.append(Meld(
+                tiles=[Tile(suit, value) for _ in range(3)],
+                meld_type=MeldType.PONG
+            ))
+            backtrack(current_melds, remaining_count - 3, has_pair)
+            current_melds.pop()
+            counts[(suit_str, value)] = cnt
+
+        if cnt >= 4:
+            counts[(suit_str, value)] -= 4
+            if counts[(suit_str, value)] == 0:
+                del counts[(suit_str, value)]
+            current_melds.append(Meld(
+                tiles=[Tile(suit, value) for _ in range(4)],
+                meld_type=MeldType.KONG
+            ))
+            backtrack(current_melds, remaining_count - 4, has_pair)
+            current_melds.pop()
+            counts[(suit_str, value)] = cnt
+
+        if cnt >= 1 and suit in (Suit.BAMBOO, Suit.CHARACTERS, Suit.DOTS) and 1 <= value <= 7:
+            v2 = (suit_str, value + 1)
+            v3 = (suit_str, value + 2)
+            if counts.get(v2, 0) >= 1 and counts.get(v3, 0) >= 1:
+                for v in [(suit_str, value), v2, v3]:
+                    counts[v] -= 1
+                    if counts[v] == 0:
+                        del counts[v]
                 current_melds.append(Meld(
-                    tiles=[Tile(suit, value) for _ in range(3)],
-                    meld_type=MeldType.PONG
+                    tiles=[Tile(suit, value), Tile(suit, value + 1), Tile(suit, value + 2)],
+                    meld_type=MeldType.CHOW
                 ))
-                backtrack(current_melds, remaining_count - 3)
+                backtrack(current_melds, remaining_count - 3, has_pair)
                 current_melds.pop()
-                counts[(suit_str, value)] = cnt
+                for v, orig_val in [((suit_str, value), value), (v2, value + 1), (v3, value + 2)]:
+                    counts[v] = counts.get(v, 0) + 1
 
-            if cnt >= 4:
-                counts[(suit_str, value)] -= 4
-                if counts[(suit_str, value)] == 0:
-                    del counts[(suit_str, value)]
-                current_melds.append(Meld(
-                    tiles=[Tile(suit, value) for _ in range(4)],
-                    meld_type=MeldType.KONG
-                ))
-                backtrack(current_melds, remaining_count - 4)
-                current_melds.pop()
-                counts[(suit_str, value)] = cnt
-
-            if cnt >= 1 and suit in (Suit.BAMBOO, Suit.CHARACTERS, Suit.DOTS) and 1 <= value <= 7:
-                v2 = (suit_str, value + 1)
-                v3 = (suit_str, value + 2)
-                if counts.get(v2, 0) >= 1 and counts.get(v3, 0) >= 1:
-                    for v in [(suit_str, value), v2, v3]:
-                        counts[v] -= 1
-                        if counts[v] == 0:
-                            del counts[v]
-                    current_melds.append(Meld(
-                        tiles=[Tile(suit, value), Tile(suit, value + 1), Tile(suit, value + 2)],
-                        meld_type=MeldType.CHOW
-                    ))
-                    backtrack(current_melds, remaining_count - 3)
-                    current_melds.pop()
-                    for v, orig_val in [((suit_str, value), value), (v2, value + 1), (v3, value + 2)]:
-                        counts[v] = counts.get(v, 0) + 1
-
-            if cnt >= 1 and remaining_count > 2:
-                counts[(suit_str, value)] -= 1
-                if counts[(suit_str, value)] == 0:
-                    del counts[(suit_str, value)]
-                backtrack(current_melds, remaining_count - 1)
-                counts[(suit_str, value)] = cnt
-
-    backtrack([], len(tiles))
+    backtrack([], len(tiles), False)
     return results
+
+
+def _is_fully_concealed(hand: Hand, melds: List[Meld]) -> bool:
+    if len(melds) != 5:
+        return False
+    return all(x.concealed for x in melds if x.meld_type != MeldType.PAIR) and not hand.is_self_drawn
 
 
 def _is_ping_hu(melds: List[Meld], seat_wind: Wind, prevalent_wind: Wind) -> bool:
@@ -120,8 +119,10 @@ def _all_pongs(melds: List[Meld]) -> bool:
     return all(m.meld_type in (MeldType.PONG, MeldType.KONG, MeldType.PAIR) for m in melds) and sum(1 for m in melds if m.meld_type == MeldType.PAIR) == 1
 
 
-def _is_pure_one_suit(tiles: List[Tile]) -> bool:
-    suits = {t.suit for t in tiles if not t.is_honor()}
+def _is_pure_one_suit(melds: List[Meld]) -> bool:
+    if len(melds) != 5:
+        return False
+    suits = {t.suit for m in melds for t in m.tiles if not t.is_honor()}
     return len(suits) == 1
 
 
@@ -159,9 +160,12 @@ def _is_small_four_winds(melds: List[Meld]) -> bool:
     return wind_pongs == 3 and wind_pair
 
 
-def _is_mixed_one_suit(tiles: List[Tile]) -> bool:
-    suits = {t.suit for t in tiles if not t.is_honor()}
-    return len(suits) == 1 and _has_honors(tiles)
+def _is_mixed_one_suit(melds: List[Meld]) -> bool:
+    if len(melds) != 5:
+        return False
+    suits = {t.suit for m in melds for t in m.tiles if not t.is_honor()}
+    has_honors = any(t.is_honor() for m in melds for t in m.tiles)
+    return len(suits) == 1 and has_honors
 
 
 def _is_thirteen_orphans(tiles: List[Tile]) -> bool:
@@ -256,7 +260,7 @@ PATTERN_REGISTRY: List[PatternDefinition] = [
         name="Fully Concealed Hand",
         name_zh="門前清",
         fan=1,
-        condition=lambda h, m, t: all(x.concealed for x in m if x.meld_type != MeldType.PAIR) and not h.is_self_drawn
+        condition=lambda h, m, t: _is_fully_concealed(h, m)
     ),
     PatternDefinition(
         name="Dragon Pong",
@@ -292,7 +296,7 @@ PATTERN_REGISTRY: List[PatternDefinition] = [
         name="Mixed One Suit (Half Flush)",
         name_zh="混一色",
         fan=3,
-        condition=lambda h, m, t: _is_mixed_one_suit(t)
+        condition=lambda h, m, t: _is_mixed_one_suit(m)
     ),
     PatternDefinition(
         name="All Pongs",
@@ -310,7 +314,7 @@ PATTERN_REGISTRY: List[PatternDefinition] = [
         name="Pure One Suit (Full Flush)",
         name_zh="清一色",
         fan=7,
-        condition=lambda h, m, t: _is_pure_one_suit(t) and not _has_honors(t)
+        condition=lambda h, m, t: _is_pure_one_suit(m) and not _has_honors(t)
     ),
     PatternDefinition(
         name="Big Three Dragons",
@@ -421,19 +425,13 @@ def score_hand(hand: Hand, base_point: int = 1, limit_hand_points: int = 10000) 
         total = limit_hand_points
         best_score = max(best_score, 10)
 
-    is_dealer = hand.seat_wind == Wind.EAST
-    dealer_mult = 1
-    if is_dealer:
-        dealer_mult = 2
-
-    total_payable = total * dealer_mult
+    total_payable = total
 
     return {
         "total_fan": best_score,
         "fans": [f.to_dict() for f in best_fans],
         "base_score": base,
         "is_limit": is_limit,
-        "dealer_multiplier": dealer_mult,
         "total_payable": total_payable,
         "winner": hand.seat_wind.value,
     }

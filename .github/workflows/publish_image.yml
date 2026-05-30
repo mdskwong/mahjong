@@ -2,9 +2,6 @@ name: Publish Mahjong Image
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: write

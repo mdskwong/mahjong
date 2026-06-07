@@ -56,7 +56,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .meld-item-tiles { display: flex; gap: 4px; }
 .meld-item button { font-size: 12px; padding: 2px 8px; border-radius: 4px; }
 .tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #0f3460; }
+.mode-btn { background: #0f3460; color: #aaa; border: 1px solid #1a2744; flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 16px; }
+.mode-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+.history-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+.history-table th, .history-table td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #1a2744; }
+.history-table th { color: #aaa; font-weight: normal; }
+.history-table th:first-child, .history-table td:first-child { text-align: left; }
+.pos-score { color: #2ecc71; font-weight: bold; }
+.neg-score { color: #e74c3c; font-weight: bold; }
+.zero-score { color: #555; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -64,6 +74,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     <button id="langToggleBtn" style="font-size:14px; padding:6px 12px; background:#0f3460; border: 1px solid #e94560; color:#fff; border-radius:6px; cursor:pointer; transition:background 0.2s;">中文</button>
   </div>
   <h1 data-i18n="title">🀄 HK Mahjong Score Calculator</h1>
+
+  <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 20px;">
+    <button id="modeAdvancedBtn" class="mode-btn active" data-i18n="modeAdvanced">Advanced Calculator</button>
+    <button id="modeSimpleBtn" class="mode-btn" data-i18n="modeSimple">Simple Scoreboard</button>
+  </div>
 
   <div class="card" id="scoreboardCard">
     <h2 style="display:flex; justify-content:space-between; align-items:center;">
@@ -89,6 +104,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     <div class="scoreboard-grid" id="scoreboardGrid"></div>
   </div>
 
+  <div id="advancedContainer">
   <div class="card">
     <h2 data-i18n="settings">Settings</h2>
     <div class="grid">
@@ -136,6 +152,58 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
   <button id="calculateBtn" data-i18n="calculateBtn" style="width:100%;padding:14px;font-size:18px">Calculate Score</button>
   <div id="result"></div>
+  </div>
+
+  <div id="simpleContainer" style="display: none;">
+    <div class="card">
+      <h2 data-i18n="recordGame">Record a Game</h2>
+      <div class="grid" style="align-items: center;">
+        <div class="form-row">
+          <label data-i18n="winner">Winner</label>
+          <select id="winnerWindSimple" style="width:100%"></select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="selfDraw">Self-Draw</label>
+          <input type="checkbox" id="selfDrawSimple">
+        </div>
+        <div class="form-row" id="discarderRowSimple">
+          <label data-i18n="discarder">Discarder</label>
+          <select id="discarderWindSimple" style="width:100%"></select>
+        </div>
+        <button id="recordSimpleBtn" style="width:100%;" data-i18n="recordBtn">Record Score</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="historyCard">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      <span data-i18n="gameHistory">Game History</span>
+      <div>
+        <select id="exportFormat" style="font-size:13px; padding:4px 8px; background:#0f3460; border: 1px solid #e94560; color:#fff; border-radius: 6px; cursor: pointer;">
+          <option value="" disabled selected data-i18n="exportBtn">Export...</option>
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+          <option value="image">Image (PNG)</option>
+        </select>
+      </div>
+    </h2>
+    <div style="overflow-x: auto;">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th data-i18n="gameNumHeader"># Game</th>
+            <th id="th-east">East</th>
+            <th id="th-south">South</th>
+            <th id="th-west">West</th>
+            <th id="th-north">North</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="5" class="zero-score" style="text-align:center;" data-i18n="noHistory">No games recorded yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 <script>
 const SUIT_CLASS = { bamboo: 'bamboo', characters: 'characters', dots: 'dots', wind: 'wind', dragon: 'dragon' };
@@ -150,6 +218,13 @@ const DRAGON_NAMES = ['','Red','Green','White'];
 const WIND_NAMES = ['East','South','West','North'];
 const VALUE_SUITS = ['bamboo','characters','dots'];
 const ALL_SUITS = ['bamboo','characters','dots','wind','dragon'];
+
+// Session Management
+let sessionId = localStorage.getItem('mahjong_session_id');
+if (!sessionId) {
+  sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  localStorage.setItem('mahjong_session_id', sessionId);
+}
 
 let currentLang = 'en';
 const translations = {
@@ -187,7 +262,19 @@ const translations = {
     fanPatterns: "Fan Patterns:",
     commonHand: "Common Hand (0 fan) - base {0} point",
     errNotWinning: "Not a winning hand - cannot form 4 melds + 1 pair",
-    errTooFew: "Too few tiles in hand"
+    errTooFew: "Too few tiles in hand",
+    modeAdvanced: "Advanced Calculator",
+    modeSimple: "Simple Scoreboard",
+    recordGame: "Record a Game",
+    recordBtn: "Record Score",
+    gameHistory: "Game History",
+    gameNumHeader: "# Game",
+    gameNum: "Game {0}",
+    noHistory: "No games recorded yet",
+    typeSelfDraw: "Self Draw",
+    typeDiscard: "Discard",
+    advTag: " (Adv)",
+    exportBtn: "Export..."
   },
   zh: {
     title: "🀄 香港麻雀計番神器",
@@ -223,7 +310,19 @@ const translations = {
     fanPatterns: "番型:",
     commonHand: "雞糊 (0番) - 底 {0} 分",
     errNotWinning: "這不是食糊牌型 - 無法組成 4 搭 1 眼",
-    errTooFew: "手牌數量不足"
+    errTooFew: "手牌數量不足",
+    modeAdvanced: "進階計分",
+    modeSimple: "簡易計分",
+    recordGame: "記錄遊戲",
+    recordBtn: "記錄分數",
+    gameHistory: "遊戲歷史",
+    gameNumHeader: "# 局",
+    gameNum: "第 {0} 局",
+    noHistory: "尚未有記錄",
+    typeSelfDraw: "自摸",
+    typeDiscard: "出銃",
+    advTag: " (進階)",
+    exportBtn: "匯出..."
   }
 };
 
@@ -250,6 +349,8 @@ let players = {
   west: { name: 'Player West', score: 0 },
   north: { name: 'Player North', score: 0 }
 };
+
+let historyLog = [];
 
 function getTileCount(suit, value) {
   let count = 0;
@@ -559,6 +660,92 @@ document.getElementById('clearConcealed').addEventListener('click', () => {
   renderMeldValueBtns();
 });
 
+// Mode Toggle Functionality
+document.getElementById('modeAdvancedBtn').addEventListener('click', (e) => {
+  e.target.classList.add('active');
+  document.getElementById('modeSimpleBtn').classList.remove('active');
+  document.getElementById('advancedContainer').style.display = 'block';
+  document.getElementById('simpleContainer').style.display = 'none';
+});
+
+document.getElementById('modeSimpleBtn').addEventListener('click', (e) => {
+  e.target.classList.add('active');
+  document.getElementById('modeAdvancedBtn').classList.remove('active');
+  document.getElementById('advancedContainer').style.display = 'none';
+  document.getElementById('simpleContainer').style.display = 'block';
+});
+
+// Simple Scoreboard Form Logic
+document.getElementById('selfDrawSimple').addEventListener('change', (e) => {
+  const discarderRow = document.getElementById('discarderRowSimple');
+  const discarderWind = document.getElementById('discarderWindSimple');
+  if (e.target.checked) {
+    discarderRow.style.opacity = '0.5';
+    discarderWind.disabled = true;
+  } else {
+    discarderRow.style.opacity = '1';
+    discarderWind.disabled = false;
+  }
+});
+
+document.getElementById('recordSimpleBtn').addEventListener('click', async () => {
+  const winner = document.getElementById('winnerWindSimple').value;
+  const isSelfDraw = document.getElementById('selfDrawSimple').checked;
+  const discarder = document.getElementById('discarderWindSimple').value;
+
+  if (!isSelfDraw && winner === discarder) {
+    alert(t('errorSameWind'));
+    return;
+  }
+
+  try {
+    const res = await fetch('/score-simple', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
+      body: JSON.stringify({ winner, is_self_drawn: isSelfDraw, discarder })
+    });
+    if (res.ok) await fetchState();
+  } catch (e) {
+    console.error(e);
+  }
+});
+
+// Global History Renderer
+function renderHistory() {
+  const tbody = document.getElementById('historyBody');
+  document.getElementById('th-east').innerText = players.east.name;
+  document.getElementById('th-south').innerText = players.south.name;
+  document.getElementById('th-west').innerText = players.west.name;
+  document.getElementById('th-north').innerText = players.north.name;
+
+  if (!historyLog || historyLog.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="zero-score" style="text-align:center;">${t('noHistory')}</td></tr>`;
+    return;
+  }
+
+  const formatScore = (val) => {
+    if (val > 0) return `<span class="pos-score">+${val}</span>`;
+    if (val < 0) return `<span class="neg-score">${val}</span>`;
+    return `<span class="zero-score">0</span>`;
+  };
+
+  tbody.innerHTML = historyLog.map((record, idx) => {
+    let tKey = record.type;
+    let typeLabel = tKey.includes('self_draw') ? t('typeSelfDraw') : t('typeDiscard');
+    let advTag = tKey.includes('advanced') ? t('advTag') : '';
+    
+    return `
+    <tr>
+      <td>${t('gameNum', idx + 1)} <div style="font-size:11px;color:#aaa">${typeLabel}${advTag}</div></td>
+      <td>${formatScore(record.deltas.east)}</td>
+      <td>${formatScore(record.deltas.south)}</td>
+      <td>${formatScore(record.deltas.west)}</td>
+      <td>${formatScore(record.deltas.north)}</td>
+    </tr>
+    `;
+  }).join('');
+}
+
 // Handle Self-Draw toggle
 document.getElementById('selfDraw').addEventListener('change', (e) => {
   const discarderRow = document.getElementById('discarderRow');
@@ -605,7 +792,7 @@ document.getElementById('calculateBtn').addEventListener('click', async () => {
 
     const res = await fetch('/score', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -700,13 +887,21 @@ function updateDropdownOptions() {
   const discarderWindSelect = document.getElementById('discarderWind');
   const prevalentWindSelect = document.getElementById('prevalentWind');
   
+  const simpleWinner = document.getElementById('winnerWindSimple');
+  const simpleDiscarder = document.getElementById('discarderWindSimple');
+
   const seatVal = seatWindSelect.value || 'east';
   const discarderVal = discarderWindSelect.value || 'east';
   const prevalentVal = prevalentWindSelect.value || 'east';
   
+  const swVal = simpleWinner.value || 'east';
+  const sdVal = simpleDiscarder.value || 'east';
+
   seatWindSelect.innerHTML = '';
   discarderWindSelect.innerHTML = '';
   prevalentWindSelect.innerHTML = '';
+  simpleWinner.innerHTML = '';
+  simpleDiscarder.innerHTML = '';
   
   ['east', 'south', 'west', 'north'].forEach(w => {
     const wName = t(w);
@@ -717,17 +912,22 @@ function updateDropdownOptions() {
       const text = `${p.name} (${wName})`;
       seatWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
       discarderWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
+      simpleWinner.innerHTML += `<option value="${w}">${text}</option>`;
+      simpleDiscarder.innerHTML += `<option value="${w}">${text}</option>`;
     }
   });
   
   seatWindSelect.value = seatVal;
   discarderWindSelect.value = discarderVal;
   prevalentWindSelect.value = prevalentVal;
+  
+  simpleWinner.value = swVal;
+  simpleDiscarder.value = sdVal;
 }
 
 async function fetchState() {
   try {
-    const res = await fetch('/state');
+    const res = await fetch('/state', { headers: { 'X-Session-ID': sessionId } });
     if (res.ok) {
       const data = await res.json();
       data.players.forEach(p => {
@@ -738,6 +938,10 @@ async function fetchState() {
       });
       if (data.prevalent_wind) {
         document.getElementById('prevalentWind').value = data.prevalent_wind;
+      }
+      if (data.history) {
+        historyLog = data.history;
+        renderHistory();
       }
       updateDropdownOptions();
       renderScoreboard();
@@ -773,7 +977,7 @@ document.getElementById('savePlayersBtn').addEventListener('click', async () => 
   try {
     await fetch('/players', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
       body: JSON.stringify(payload)
     });
     await fetchState();
@@ -786,7 +990,7 @@ document.getElementById('savePlayersBtn').addEventListener('click', async () => 
 
 document.getElementById('rotateWindsBtn').addEventListener('click', async () => {
   try {
-    await fetch('/rotate-winds', { method: 'POST' });
+    await fetch('/rotate-winds', { method: 'POST', headers: { 'X-Session-ID': sessionId } });
     await fetchState(); // Instantly update frontend UI
   } catch (e) {
     console.error('Failed to rotate winds', e);
@@ -796,12 +1000,57 @@ document.getElementById('rotateWindsBtn').addEventListener('click', async () => 
 document.getElementById('resetScoreboardBtn').addEventListener('click', async () => {
   if (!confirm(t('confirmReset'))) return;
   try {
-    await fetch('/reset-scores', { method: 'POST' });
+    await fetch('/reset-scores', { method: 'POST', headers: { 'X-Session-ID': sessionId } });
     await fetchState();
   } catch (e) {
     console.error('Failed to reset scores', e);
   }
 });
+
+// Export Logic
+document.getElementById('exportFormat').addEventListener('change', async (e) => {
+  const format = e.target.value;
+  e.target.value = ""; // reset selection
+  
+  if (format === 'csv') {
+    let csv = 'Game,Type,East,South,West,North\n';
+    historyLog.forEach((record, idx) => {
+      let tKey = record.type;
+      let typeLabel = tKey.includes('self_draw') ? t('typeSelfDraw') : t('typeDiscard');
+      let advTag = tKey.includes('advanced') ? t('advTag') : '';
+      csv += `${idx + 1},${typeLabel}${advTag},${record.deltas.east},${record.deltas.south},${record.deltas.west},${record.deltas.north}\n`;
+    });
+    // Prepending \uFEFF to enforce UTF-8 BOM so Excel opens characters properly
+    downloadBlob(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }), 'mahjong_history.csv');
+  } else if (format === 'json') {
+    const data = { players, history: historyLog };
+    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'mahjong_history.json');
+  } else if (format === 'image') {
+    if (!window.html2canvas) return alert('html2canvas library not loaded yet.');
+    const element = document.getElementById('historyCard');
+    const exportSelect = document.getElementById('exportFormat');
+    exportSelect.style.display = 'none'; // hide dropdown during snapshot
+    try {
+      const canvas = await html2canvas(element, { backgroundColor: '#16213e' });
+      canvas.toBlob((blob) => downloadBlob(blob, 'mahjong_history.png'));
+    } catch (err) {
+      console.error('Error exporting image:', err);
+    } finally {
+      exportSelect.style.display = 'inline-block';
+    }
+  }
+});
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
 
 document.getElementById('uploadImageBtn').addEventListener('click', () => {
   document.getElementById('imageInput').click();
@@ -822,6 +1071,7 @@ document.getElementById('imageInput').addEventListener('change', async (e) => {
   try {
     const res = await fetch('/detect', {
       method: 'POST',
+      headers: { 'X-Session-ID': sessionId },
       body: formData,
     });
     const data = await res.json();
@@ -867,6 +1117,7 @@ document.getElementById('langToggleBtn').addEventListener('click', () => {
   renderMeldTypeTabs();
   renderMeldSuitTabs();
   renderMeldList();
+  renderHistory();
   
   if (calculating) document.getElementById('calculateBtn').textContent = t('calculating');
   if (lastResultData) displayResult(lastResultData);

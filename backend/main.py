@@ -313,6 +313,24 @@ class Handler(BaseHTTPRequestHandler):
             if hasattr(game_state, 'history'):
                 game_state.history = []
             self._send_json({"message": "Scores reset successfully"})
+        elif path == "/delete-history":
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > 0:
+                body_data = self.rfile.read(content_length)
+                body = json.loads(body_data.decode("utf-8"))
+                session_id = self.headers.get("X-Session-ID", "default")
+                game_state = get_game_state(session_id)
+                index = body.get("index")
+                if hasattr(game_state, 'history') and index is not None and 0 <= index < len(game_state.history):
+                    record = game_state.history.pop(index)
+                    for p in game_state.players:
+                        if p.seat_wind.value in record["deltas"]:
+                            p.score -= record["deltas"][p.seat_wind.value]
+                    self._send_json({"message": "Record deleted successfully"})
+                else:
+                    self._send_json({"error": "Invalid index"}, 400)
+            else:
+                self._send_json({"error": "Empty request body"}, 400)
         else:
             self._send_json({"error": "Not found"}, 404)
 

@@ -196,10 +196,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
             <th id="th-south">South</th>
             <th id="th-west">West</th>
             <th id="th-north">North</th>
+            <th data-i18n="actions">Actions</th>
           </tr>
         </thead>
         <tbody id="historyBody">
-          <tr><td colspan="5" class="zero-score" style="text-align:center;" data-i18n="noHistory">No games recorded yet</td></tr>
+          <tr><td colspan="6" class="zero-score" style="text-align:center;" data-i18n="noHistory">No games recorded yet</td></tr>
         </tbody>
       </table>
     </div>
@@ -274,7 +275,9 @@ const translations = {
     typeSelfDraw: "Self Draw",
     typeDiscard: "Discard",
     advTag: " (Adv)",
-    exportBtn: "Export..."
+    exportBtn: "Export...",
+    actions: "Actions",
+    delete: "Delete"
   },
   zh: {
     title: "🀄 香港麻雀計番神器",
@@ -322,7 +325,9 @@ const translations = {
     typeSelfDraw: "自摸",
     typeDiscard: "出銃",
     advTag: " (進階)",
-    exportBtn: "匯出..."
+    exportBtn: "匯出...",
+    actions: "操作",
+    delete: "刪除"
   }
 };
 
@@ -728,7 +733,7 @@ function renderHistory() {
   document.getElementById('th-north').innerText = players.north.name;
 
   if (!historyLog || historyLog.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="zero-score" style="text-align:center;">${t('noHistory')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="zero-score" style="text-align:center;">${t('noHistory')}</td></tr>`;
     return;
   }
 
@@ -750,9 +755,27 @@ function renderHistory() {
       <td>${formatScore(record.deltas.south)}</td>
       <td>${formatScore(record.deltas.west)}</td>
       <td>${formatScore(record.deltas.north)}</td>
+      <td><button class="delete-history-btn" data-index="${idx}" style="font-size:12px; padding:4px 8px; background:#e74c3c; border:none; border-radius:4px; color:#fff; cursor:pointer;">${t('delete')}</button></td>
     </tr>
     `;
   }).join('');
+
+  document.querySelectorAll('.delete-history-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const idx = parseInt(e.target.dataset.index);
+      if (!confirm(currentLang === 'zh' ? '確定要刪除這條記錄嗎？' : 'Are you sure you want to delete this record?')) return;
+      try {
+        const res = await fetch('/delete-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
+          body: JSON.stringify({ index: idx })
+        });
+        if (res.ok) await fetchState();
+      } catch (err) {
+        console.error('Failed to delete history record', err);
+      }
+    });
+  });
 }
 
 // Handle Self-Draw toggle

@@ -67,17 +67,19 @@ PATTERNS_DATA = {
     ]
 }
 
-game_state = GameState(
-    players=[
-        Player(name="Player 1", seat_wind=Wind.EAST),
-        Player(name="Player 2", seat_wind=Wind.SOUTH),
-        Player(name="Player 3", seat_wind=Wind.WEST),
-        Player(name="Player 4", seat_wind=Wind.NORTH),
-    ]
-)
+sessions = {}
 
+def get_game_state(session_id: str) -> GameState:
+    if session_id not in sessions:
+        sessions[session_id] = GameState(players=[
+            Player(name="Player 1", seat_wind=Wind.EAST),
+            Player(name="Player 2", seat_wind=Wind.SOUTH),
+            Player(name="Player 3", seat_wind=Wind.WEST),
+            Player(name="Player 4", seat_wind=Wind.NORTH),
+        ])
+    return sessions[session_id]
 
-def handle_score(body: dict) -> dict:
+def handle_score(body: dict, game_state: GameState) -> dict:
     try:
         concealed = [_parse_tile(t) for t in body["concealed_tiles"]]
         melds_raw = body.get("melds", [])
@@ -113,7 +115,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Session-ID")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -130,7 +132,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Session-ID")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.end_headers()
 
@@ -148,6 +150,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/patterns":
             self._send_json(PATTERNS_DATA)
         elif path == "/state":
+            session_id = self.headers.get("X-Session-ID", "default")
+            game_state = get_game_state(session_id)
             state_data = {
                 "prevalent_wind": game_state.prevalent_wind.value,
                 "players": [
@@ -156,7 +160,8 @@ class Handler(BaseHTTPRequestHandler):
                         "seat_wind": p.seat_wind.value,
                         "score": p.score
                     } for p in game_state.players
-                ]
+                ],
+                "history": getattr(game_state, 'history', [])
             }
             self._send_json(state_data)
         elif path == "/score":
@@ -172,8 +177,52 @@ class Handler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get("Content-Length", 0))
             body_data = self.rfile.read(content_length)
             body = json.loads(body_data.decode("utf-8"))
-            result = handle_score(body)
+            
+            session_id = self.headers.get("X-Session-ID", "default")
+            game_state = get_game_state(session_id)
+            old_scores = {p.seat_wind.value: p.score for p in game_state.players}
+            result = handle_score(body, game_state)
+            if "error" not in result:
+                new_scores = {p.seat_wind.value: p.score for p in game_state.players}
+                deltas = {w: new_scores[w] - old_scores[w] for w in old_scores}
+                if any(v != 0 for v in deltas.values()):
+                    if not hasattr(game_state, 'history'):
+                        game_state.history = []
+                    game_state.history.append({
+                        "type": "advanced_self_draw" if body.get("is_self_drawn", False) else "advanced_discard",
+                        "deltas": deltas
+                    })
             self._send_json(result)
+        elif path == "/score-simple":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body_data = self.rfile.read(content_length)
+            body = json.loads(body_data.decode("utf-8"))
+            
+            session_id = self.headers.get("X-Session-ID", "default")
+            game_state = get_game_state(session_id)
+            winner = body.get("winner")
+            is_self_drawn = body.get("is_self_drawn", False)
+            discarder = body.get("discarder")
+            
+            deltas = {"east": 0, "south": 0, "west": 0, "north": 0}
+            if is_self_drawn:
+                for w in deltas:
+                    deltas[w] = 3 if w == winner else -1
+            else:
+                deltas[winner] = 1
+                if discarder:
+                    deltas[discarder] = -1
+                    
+            for p in game_state.players:
+                p.score += deltas[p.seat_wind.value]
+                
+            if not hasattr(game_state, 'history'):
+                game_state.history = []
+            game_state.history.append({
+                "type": "self_draw" if is_self_drawn else "discard",
+                "deltas": deltas
+            })
+            self._send_json({"message": "Score recorded successfully"})
         elif path == "/detect":
             detection_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
             if detection_path not in sys.path:
@@ -232,6 +281,8 @@ class Handler(BaseHTTPRequestHandler):
             if content_length > 0:
                 body_data = self.rfile.read(content_length)
                 body = json.loads(body_data.decode("utf-8"))
+                session_id = self.headers.get("X-Session-ID", "default")
+                game_state = get_game_state(session_id)
                 for p in game_state.players:
                     if p.seat_wind.value in body:
                         p.name = body[p.seat_wind.value]
@@ -239,6 +290,8 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send_json({"error": "Empty request body"}, 400)
         elif path == "/rotate-winds":
+            session_id = self.headers.get("X-Session-ID", "default")
+            game_state = get_game_state(session_id)
             wind_transition = {
                 Wind.EAST: Wind.NORTH,
                 Wind.SOUTH: Wind.EAST,
@@ -249,8 +302,12 @@ class Handler(BaseHTTPRequestHandler):
                 p.seat_wind = wind_transition[p.seat_wind]
             self._send_json({"message": "Winds rotated successfully"})
         elif path == "/reset-scores":
+            session_id = self.headers.get("X-Session-ID", "default")
+            game_state = get_game_state(session_id)
             for p in game_state.players:
                 p.score = 0
+            if hasattr(game_state, 'history'):
+                game_state.history = []
             self._send_json({"message": "Scores reset successfully"})
         else:
             self._send_json({"error": "Not found"}, 404)

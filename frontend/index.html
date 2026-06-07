@@ -66,6 +66,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .neg-score { color: #e74c3c; font-weight: bold; }
 .zero-score { color: #555; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -175,7 +176,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   </div>
 
   <div class="card" id="historyCard">
-    <h2 data-i18n="gameHistory">Game History</h2>
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      <span data-i18n="gameHistory">Game History</span>
+      <div>
+        <select id="exportFormat" style="font-size:13px; padding:4px 8px; background:#0f3460; border: 1px solid #e94560; color:#fff; border-radius: 6px; cursor: pointer;">
+          <option value="" disabled selected data-i18n="exportBtn">Export...</option>
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+          <option value="image">Image (PNG)</option>
+        </select>
+      </div>
+    </h2>
     <div style="overflow-x: auto;">
       <table class="history-table">
         <thead>
@@ -262,7 +273,8 @@ const translations = {
     noHistory: "No games recorded yet",
     typeSelfDraw: "Self Draw",
     typeDiscard: "Discard",
-    advTag: " (Adv)"
+    advTag: " (Adv)",
+    exportBtn: "Export..."
   },
   zh: {
     title: "🀄 香港麻雀計番神器",
@@ -309,7 +321,8 @@ const translations = {
     noHistory: "尚未有記錄",
     typeSelfDraw: "自摸",
     typeDiscard: "出銃",
-    advTag: " (進階)"
+    advTag: " (進階)",
+    exportBtn: "匯出..."
   }
 };
 
@@ -993,6 +1006,51 @@ document.getElementById('resetScoreboardBtn').addEventListener('click', async ()
     console.error('Failed to reset scores', e);
   }
 });
+
+// Export Logic
+document.getElementById('exportFormat').addEventListener('change', async (e) => {
+  const format = e.target.value;
+  e.target.value = ""; // reset selection
+  
+  if (format === 'csv') {
+    let csv = 'Game,Type,East,South,West,North\n';
+    historyLog.forEach((record, idx) => {
+      let tKey = record.type;
+      let typeLabel = tKey.includes('self_draw') ? t('typeSelfDraw') : t('typeDiscard');
+      let advTag = tKey.includes('advanced') ? t('advTag') : '';
+      csv += `${idx + 1},${typeLabel}${advTag},${record.deltas.east},${record.deltas.south},${record.deltas.west},${record.deltas.north}\n`;
+    });
+    // Prepending \uFEFF to enforce UTF-8 BOM so Excel opens characters properly
+    downloadBlob(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }), 'mahjong_history.csv');
+  } else if (format === 'json') {
+    const data = { players, history: historyLog };
+    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'mahjong_history.json');
+  } else if (format === 'image') {
+    if (!window.html2canvas) return alert('html2canvas library not loaded yet.');
+    const element = document.getElementById('historyCard');
+    const exportSelect = document.getElementById('exportFormat');
+    exportSelect.style.display = 'none'; // hide dropdown during snapshot
+    try {
+      const canvas = await html2canvas(element, { backgroundColor: '#16213e' });
+      canvas.toBlob((blob) => downloadBlob(blob, 'mahjong_history.png'));
+    } catch (err) {
+      console.error('Error exporting image:', err);
+    } finally {
+      exportSelect.style.display = 'inline-block';
+    }
+  }
+});
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
 
 document.getElementById('uploadImageBtn').addEventListener('click', () => {
   document.getElementById('imageInput').click();

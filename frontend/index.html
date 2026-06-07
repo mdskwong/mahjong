@@ -158,9 +158,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
     <div class="card">
       <h2 data-i18n="recordGame">Record a Game</h2>
       <div class="grid" style="align-items: center;">
-        <div class="form-row">
+        <div class="form-row" style="align-items: flex-start; margin-top: 8px;">
           <label data-i18n="winner">Winner</label>
-          <select id="winnerWindSimple" style="width:100%"></select>
+          <div id="winnerWindSimple" style="display: flex; flex-direction: column; gap: 6px;"></div>
         </div>
         <div class="form-row">
           <label data-i18n="selfDraw">Self-Draw</label>
@@ -689,11 +689,20 @@ document.getElementById('selfDrawSimple').addEventListener('change', (e) => {
 });
 
 document.getElementById('recordSimpleBtn').addEventListener('click', async () => {
-  const winner = document.getElementById('winnerWindSimple').value;
+  const winnerContainer = document.getElementById('winnerWindSimple');
+  const winners = Array.from(winnerContainer.querySelectorAll('input:checked')).map(cb => cb.value);
   const isSelfDraw = document.getElementById('selfDrawSimple').checked;
   const discarder = document.getElementById('discarderWindSimple').value;
 
-  if (!isSelfDraw && winner === discarder) {
+  if (winners.length === 0) {
+    alert(currentLang === 'zh' ? '請選擇至少一名食糊者。' : 'Please select at least one winner.');
+    return;
+  }
+  if (isSelfDraw && winners.length > 1) {
+    alert(currentLang === 'zh' ? '自摸只能有一名食糊者。' : 'Self-draw can only have one winner.');
+    return;
+  }
+  if (!isSelfDraw && winners.includes(discarder)) {
     alert(t('errorSameWind'));
     return;
   }
@@ -702,7 +711,7 @@ document.getElementById('recordSimpleBtn').addEventListener('click', async () =>
     const res = await fetch('/score-simple', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
-      body: JSON.stringify({ winner, is_self_drawn: isSelfDraw, discarder })
+      body: JSON.stringify({ winners, is_self_drawn: isSelfDraw, discarder })
     });
     if (res.ok) await fetchState();
   } catch (e) {
@@ -894,7 +903,7 @@ function updateDropdownOptions() {
   const discarderVal = discarderWindSelect.value || 'east';
   const prevalentVal = prevalentWindSelect.value || 'east';
   
-  const swVal = simpleWinner.value || 'east';
+  const swVals = Array.from(simpleWinner.querySelectorAll('input:checked')).map(cb => cb.value);
   const sdVal = simpleDiscarder.value || 'east';
 
   seatWindSelect.innerHTML = '';
@@ -912,7 +921,7 @@ function updateDropdownOptions() {
       const text = `${p.name} (${wName})`;
       seatWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
       discarderWindSelect.innerHTML += `<option value="${w}">${text}</option>`;
-      simpleWinner.innerHTML += `<option value="${w}">${text}</option>`;
+      simpleWinner.innerHTML += `<label style="display:flex; align-items:center; gap:4px; font-size:14px; cursor:pointer;"><input type="checkbox" value="${w}"> ${text}</label>`;
       simpleDiscarder.innerHTML += `<option value="${w}">${text}</option>`;
     }
   });
@@ -921,7 +930,9 @@ function updateDropdownOptions() {
   discarderWindSelect.value = discarderVal;
   prevalentWindSelect.value = prevalentVal;
   
-  simpleWinner.value = swVal;
+  simpleWinner.querySelectorAll('input').forEach(cb => {
+    cb.checked = swVals.includes(cb.value) || (swVals.length === 0 && cb.value === 'east');
+  });
   simpleDiscarder.value = sdVal;
 }
 

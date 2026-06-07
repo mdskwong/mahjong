@@ -200,18 +200,22 @@ class Handler(BaseHTTPRequestHandler):
             
             session_id = self.headers.get("X-Session-ID", "default")
             game_state = get_game_state(session_id)
-            winner = body.get("winner")
+            winners = body.get("winners", [])
+            if "winner" in body and not winners:
+                winners = [body.get("winner")]
             is_self_drawn = body.get("is_self_drawn", False)
             discarder = body.get("discarder")
             
             deltas = {"east": 0, "south": 0, "west": 0, "north": 0}
             if is_self_drawn:
-                for w in deltas:
-                    deltas[w] = 3 if w == winner else -1
+                if winners:
+                    for w in deltas:
+                        deltas[w] = 3 if w == winners[0] else -1
             else:
-                deltas[winner] = 1
-                if discarder:
-                    deltas[discarder] = -1
+                for winner in winners:
+                    deltas[winner] += 1
+                    if discarder:
+                        deltas[discarder] -= 1
                     
             for p in game_state.players:
                 p.score += deltas[p.seat_wind.value]
